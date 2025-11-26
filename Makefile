@@ -1,4 +1,4 @@
-.PHONY: help deps compile test console format format-check lint lint-strict clean docs all
+.PHONY: help deps compile test coverage console format format-check lint lint-strict clean docs all
 
 # Default target
 help:
@@ -6,6 +6,7 @@ help:
 	@echo "  make deps          - Install dependencies"
 	@echo "  make compile       - Compile the project"
 	@echo "  make test          - Run tests"
+	@echo "  make coverage      - Run tests with coverage report"
 	@echo "  make console       - Start IEx with the project loaded"
 	@echo "  make format        - Format code"
 	@echo "  make format-check  - Check code formatting"
@@ -26,6 +27,11 @@ compile: deps
 # Run tests
 test: compile
 	mix test
+
+# Run tests with coverage report
+coverage: compile
+	mix coveralls.html
+	@echo "✓ Coverage report generated in cover/excoveralls.html"
 
 # Start IEx console with project loaded
 console: compile

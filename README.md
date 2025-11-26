@@ -1,5 +1,10 @@
 # Listmonk Elixir Client
 
+[![CI](https://github.com/mifkata/listmonk-elixir-client/actions/workflows/ci.yml/badge.svg)](https://github.com/mifkata/listmonk-elixir-client/actions/workflows/ci.yml)
+[![Coverage Status](https://coveralls.io/repos/github/mifkata/listmonk-elixir-client/badge.svg?branch=main)](https://coveralls.io/github/mifkata/listmonk-elixir-client?branch=main)
+[![Hex.pm](https://img.shields.io/hexpm/v/listmonk_client.svg)](https://hex.pm/packages/listmonk_client)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+
 Elixir client for the [Listmonk](https://listmonk.app) open-source, self-hosted email platform.
 
 Built with [Req](https://github.com/wojtekmach/req) HTTP client and designed for easy integration into Elixir applications.
