@@ -119,7 +119,7 @@ Using Make:
 make help
 
 # Install dependencies
-make deps
+make install
 
 # Run all checks (format, lint, compile, test)
 make all

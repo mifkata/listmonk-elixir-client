@@ -45,13 +45,7 @@ defmodule Listmonk do
   @doc """
   Checks the health of the Listmonk instance.
 
-  ## Examples
-
-      iex> Listmonk.healthy?()
-      {:ok, true}
-
-      iex> Listmonk.healthy?(config)
-      {:ok, true}
+  Returns `{:ok, true}` if the instance is healthy, or an error tuple otherwise.
   """
   @spec healthy?(Config.t() | nil) :: {:ok, boolean()} | {:error, term()}
   defdelegate healthy?(config \\ nil), to: Listmonk.Client

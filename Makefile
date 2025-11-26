@@ -1,9 +1,9 @@
-.PHONY: help deps compile test coverage console format format-check lint lint-strict clean docs all
+.PHONY: help install compile test coverage console format format-check lint lint-strict clean docs all
 
 # Default target
 help:
 	@echo "Available targets:"
-	@echo "  make deps          - Install dependencies"
+	@echo "  make install       - Install dependencies"
 	@echo "  make compile       - Compile the project"
 	@echo "  make test          - Run tests"
 	@echo "  make coverage      - Run tests with coverage report"
@@ -17,11 +17,11 @@ help:
 	@echo "  make all           - Run format, lint, compile, and test"
 
 # Install dependencies
-deps:
+install:
 	mix deps.get
 
 # Compile the project
-compile: deps
+compile: install
 	mix compile
 
 # Run tests
