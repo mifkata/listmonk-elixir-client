@@ -1,3 +1,16 @@
-listmonk-base
-_build
-deps
+# Elixir specific
+/_build
+/cover
+/deps
+/doc
+/.fetch
+erl_crash.dump
+*.ez
+*.beam
+/config/*.secret.exs
+.elixir_ls/
+
+# Environment files
+*.env
+*.env.*
+!.env.example

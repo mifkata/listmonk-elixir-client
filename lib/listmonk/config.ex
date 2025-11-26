@@ -90,8 +90,12 @@ defmodule Listmonk.Config do
   """
   @spec validate(t()) :: :ok | {:error, String.t()}
   def validate(%__MODULE__{url: nil}), do: {:error, "Missing required configuration: url"}
-  def validate(%__MODULE__{username: nil}), do: {:error, "Missing required configuration: username"}
-  def validate(%__MODULE__{password: nil}), do: {:error, "Missing required configuration: password"}
+
+  def validate(%__MODULE__{username: nil}),
+    do: {:error, "Missing required configuration: username"}
+
+  def validate(%__MODULE__{password: nil}),
+    do: {:error, "Missing required configuration: password"}
 
   def validate(%__MODULE__{url: url}) do
     if String.starts_with?(url, "http://") or String.starts_with?(url, "https://") do
