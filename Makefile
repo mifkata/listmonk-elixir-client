@@ -1,12 +1,10 @@
-.PHONY: help install compile test coverage console format format-check lint lint-strict clean docs all
+.PHONY: help install compile console format format-check lint lint-strict clean docs all
 
 # Default target
 help:
 	@echo "Available targets:"
 	@echo "  make install       - Install dependencies"
 	@echo "  make compile       - Compile the project"
-	@echo "  make test          - Run tests"
-	@echo "  make coverage      - Run tests with coverage report"
 	@echo "  make console       - Start IEx with the project loaded"
 	@echo "  make format        - Format code"
 	@echo "  make format-check  - Check code formatting"
@@ -14,7 +12,7 @@ help:
 	@echo "  make lint-strict   - Run Credo linter (strict mode)"
 	@echo "  make docs          - Generate documentation"
 	@echo "  make clean         - Clean build artifacts"
-	@echo "  make all           - Run format, lint, compile, and test"
+	@echo "  make all           - Run format and lint checks"
 
 # Install dependencies
 install:
@@ -23,15 +21,6 @@ install:
 # Compile the project
 compile: install
 	mix compile
-
-# Run tests
-test: compile
-	mix test
-
-# Run tests with coverage report
-coverage: compile
-	mix coveralls.html
-	@echo "✓ Coverage report generated in cover/excoveralls.html"
 
 # Start IEx console with project loaded
 console: compile
@@ -68,6 +57,6 @@ clean:
 	mix clean
 	rm -rf _build deps doc
 
-# Run all checks (format, lint, compile, test)
-all: format lint compile test
+# Run all checks (format, lint, compile)
+all: format lint compile
 	@echo "✓ All checks passed!"

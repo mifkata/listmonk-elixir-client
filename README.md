@@ -1,7 +1,6 @@
 # Listmonk Elixir Client
 
 [![CI](https://github.com/mifkata/listmonk-elixir-client/actions/workflows/ci.yml/badge.svg)](https://github.com/mifkata/listmonk-elixir-client/actions/workflows/ci.yml)
-[![Coverage Status](https://coveralls.io/repos/github/mifkata/listmonk-elixir-client/badge.svg?branch=main)](https://coveralls.io/github/mifkata/listmonk-elixir-client?branch=main)
 [![Hex.pm](https://img.shields.io/hexpm/v/listmonk_client.svg)](https://hex.pm/packages/listmonk_client)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
@@ -121,14 +120,13 @@ make help
 # Install dependencies
 make install
 
-# Run all checks (format, lint, compile, test)
+# Run all checks (format, lint, compile)
 make all
 
 # Individual commands
 make format        # Format code
 make lint          # Run Credo linter
 make compile       # Compile project
-make test          # Run tests
 make console       # Start IEx console (loads .env if exists)
 make docs          # Generate documentation
 ```
@@ -141,9 +139,6 @@ mix deps.get
 
 # Compile
 mix compile
-
-# Run tests
-mix test
 
 # Run linter
 mix credo

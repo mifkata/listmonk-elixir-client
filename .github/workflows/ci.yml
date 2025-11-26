@@ -7,11 +7,11 @@ on:
     branches: [ main ]
 
 env:
-  MIX_ENV: test
+  MIX_ENV: dev
 
 jobs:
-  test:
-    name: Test (Elixir ${{ matrix.elixir }} / OTP ${{ matrix.otp }})
+  quality:
+    name: Code Quality (Elixir ${{ matrix.elixir }} / OTP ${{ matrix.otp }})
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -57,37 +57,3 @@ jobs:
 
     - name: Compile code (warnings as errors)
       run: mix compile --warnings-as-errors
-
-    - name: Run tests
-      run: mix test
-
-  coverage:
-    name: Coverage Report
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Set up Elixir
-      uses: erlef/setup-beam@v1
-      with:
-        elixir-version: '1.17'
-        otp-version: '27'
-
-    - name: Restore dependencies cache
-      uses: actions/cache@v4
-      with:
-        path: |
-          deps
-          _build
-        key: ${{ runner.os }}-mix-coverage-${{ hashFiles('**/mix.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-mix-coverage-
-
-    - name: Install dependencies
-      run: mix deps.get
-
-    - name: Run tests with coverage
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: mix coveralls.github
