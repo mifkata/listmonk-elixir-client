@@ -19,6 +19,15 @@ The client supports two configuration methods:
 
 ### Environment Variables
 
+For local development, copy the example file:
+
+```bash
+cp .env.example .env
+# Edit .env with your Listmonk instance details
+```
+
+Or export variables directly:
+
 ```bash
 export LISTMONK_URL=https://listmonk.example.com
 export LISTMONK_USERNAME=admin

@@ -32,7 +32,14 @@ end
 
 ### Configuration
 
-Set environment variables:
+For local development, copy the example environment file:
+
+```bash
+cp .env.example .env
+# Edit .env with your Listmonk instance details
+```
+
+Or set environment variables directly:
 
 ```bash
 export LISTMONK_URL=https://listmonk.example.com
@@ -78,6 +85,16 @@ config = %Listmonk.Config{
 })
 ```
 
+**Quick testing with IEx console:**
+
+```bash
+make console
+# Your .env will be loaded automatically
+# Then try:
+Listmonk.healthy?()
+Listmonk.get_lists()
+```
+
 For detailed examples, see [USAGE.md](USAGE.md).
 
 ## Documentation
@@ -105,6 +122,7 @@ make format        # Format code
 make lint          # Run Credo linter
 make compile       # Compile project
 make test          # Run tests
+make console       # Start IEx console (loads .env if exists)
 make docs          # Generate documentation
 ```
 

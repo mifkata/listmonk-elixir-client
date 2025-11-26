@@ -1,4 +1,4 @@
-.PHONY: help deps compile test format format-check lint lint-strict clean docs all
+.PHONY: help deps compile test console format format-check lint lint-strict clean docs all
 
 # Default target
 help:
@@ -6,6 +6,7 @@ help:
 	@echo "  make deps          - Install dependencies"
 	@echo "  make compile       - Compile the project"
 	@echo "  make test          - Run tests"
+	@echo "  make console       - Start IEx with the project loaded"
 	@echo "  make format        - Format code"
 	@echo "  make format-check  - Check code formatting"
 	@echo "  make lint          - Run Credo linter"
@@ -25,6 +26,16 @@ compile: deps
 # Run tests
 test: compile
 	mix test
+
+# Start IEx console with project loaded
+console: compile
+	@if [ -f .env ]; then \
+		echo "Loading environment from .env..."; \
+		export $$(cat .env | grep -v '^#' | xargs) && iex -S mix; \
+	else \
+		echo "Warning: .env file not found. Copy .env.example to .env and configure it."; \
+		iex -S mix; \
+	fi
 
 # Format code
 format:
