@@ -153,7 +153,15 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! To ensure your contribution aligns with the project's direction, please follow these steps:
+
+1. **Open an issue first** - Before submitting a Pull Request, please [open an issue](https://github.com/mifkata/listmonk-elixir-client/issues/new) to discuss your proposed changes
+2. **Submit a PR** - Once approved, feel free to [submit a Pull Request](https://github.com/mifkata/listmonk-elixir-client/pulls)
+
+**Quick links:**
+- [Report a bug or request a feature](https://github.com/mifkata/listmonk-elixir-client/issues/new)
+- [View open issues](https://github.com/mifkata/listmonk-elixir-client/issues)
+- [Submit a Pull Request](https://github.com/mifkata/listmonk-elixir-client/pulls)
 
 ## Acknowledgments
 
@@ -168,4 +176,3 @@ Andriyan Ivanov <andriyan.ivanov@gmail.com> / [@mifkata](https://github.com/mifk
 - [GitHub Repository](https://github.com/mifkata/listmonk-elixir-client)
 - [Listmonk Official Site](https://listmonk.app)
 - [Listmonk GitHub](https://github.com/knadh/listmonk)
-
