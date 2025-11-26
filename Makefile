@@ -1,0 +1,56 @@
+.PHONY: help deps compile test format format-check lint lint-strict clean docs all
+
+# Default target
+help:
+	@echo "Available targets:"
+	@echo "  make deps          - Install dependencies"
+	@echo "  make compile       - Compile the project"
+	@echo "  make test          - Run tests"
+	@echo "  make format        - Format code"
+	@echo "  make format-check  - Check code formatting"
+	@echo "  make lint          - Run Credo linter"
+	@echo "  make lint-strict   - Run Credo linter (strict mode)"
+	@echo "  make docs          - Generate documentation"
+	@echo "  make clean         - Clean build artifacts"
+	@echo "  make all           - Run format, lint, compile, and test"
+
+# Install dependencies
+deps:
+	mix deps.get
+
+# Compile the project
+compile: deps
+	mix compile
+
+# Run tests
+test: compile
+	mix test
+
+# Format code
+format:
+	mix format
+
+# Check code formatting
+format-check:
+	mix format --check-formatted
+
+# Run Credo linter
+lint:
+	mix credo
+
+# Run Credo linter in strict mode
+lint-strict:
+	mix credo --strict
+
+# Generate documentation
+docs:
+	mix docs
+
+# Clean build artifacts
+clean:
+	mix clean
+	rm -rf _build deps doc
+
+# Run all checks (format, lint, compile, test)
+all: format lint compile test
+	@echo "✓ All checks passed!"

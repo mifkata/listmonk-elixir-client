@@ -88,6 +88,28 @@ For detailed examples, see [USAGE.md](USAGE.md).
 
 ## Development
 
+Using Make:
+
+```bash
+# See all available commands
+make help
+
+# Install dependencies
+make deps
+
+# Run all checks (format, lint, compile, test)
+make all
+
+# Individual commands
+make format        # Format code
+make lint          # Run Credo linter
+make compile       # Compile project
+make test          # Run tests
+make docs          # Generate documentation
+```
+
+Or use Mix directly:
+
 ```bash
 # Get dependencies
 mix deps.get
@@ -100,6 +122,9 @@ mix test
 
 # Run linter
 mix credo
+
+# Format code
+mix format
 ```
 
 ## License
