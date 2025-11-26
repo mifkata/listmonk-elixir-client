@@ -4,6 +4,8 @@ Elixir client for the [Listmonk](https://listmonk.app) open-source, self-hosted 
 
 Built with [Req](https://github.com/wojtekmach/req) HTTP client and designed for easy integration into Elixir applications.
 
+> **Note:** This library is based on the [Python Listmonk client](https://github.com/mikeckennedy/listmonk) by Michael Kennedy, adapted to idiomatic Elixir patterns and conventions.
+
 ## Features
 
 - ➕ **Add and manage subscribers** with custom attributes
@@ -152,6 +154,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+
+## Acknowledgments
+
+This library is based on the [Python Listmonk client](https://github.com/mikeckennedy/listmonk) by [Michael Kennedy](https://github.com/mikeckennedy). The Python implementation served as a reference for API coverage and functionality, adapted here to follow Elixir patterns and conventions.
 
 ## Author
 

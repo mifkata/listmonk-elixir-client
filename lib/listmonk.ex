@@ -5,6 +5,9 @@ defmodule Listmonk do
   This module provides a comprehensive interface to interact with Listmonk's API,
   including subscriber management, campaigns, templates, lists, and transactional emails.
 
+  Based on the Python Listmonk client by Michael Kennedy (https://github.com/mikeckennedy/listmonk),
+  adapted to idiomatic Elixir patterns and conventions.
+
   ## Configuration
 
   You can configure the client either via environment variables or at runtime:
