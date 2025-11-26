@@ -12,10 +12,9 @@ permissions:
   contents: write
 
 env:
-  MIX_ENV: prod
+  MIX_ENV: dev
   VERSION: ${{ github.event.inputs.version }}
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
 
 jobs:
   publish:
