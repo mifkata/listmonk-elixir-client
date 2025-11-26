@@ -1,0 +1,74 @@
+defmodule Listmonk.MixProject do
+  use Mix.Project
+
+  @version "0.1.0"
+  @source_url "https://github.com/mifkata/listmonk-elixir-client"
+
+  def project do
+    [
+      app: :listmonk_client,
+      version: @version,
+      elixir: "~> 1.14",
+      start_permanent: Mix.env() == :prod,
+      deps: deps(),
+      description: description(),
+      package: package(),
+      docs: docs(),
+      test_coverage: [tool: ExCoveralls]
+    ]
+  end
+
+  def cli do
+    [
+      preferred_envs: [
+        coveralls: :test,
+        "coveralls.detail": :test,
+        "coveralls.post": :test,
+        "coveralls.html": :test
+      ]
+    ]
+  end
+
+  def application do
+    [
+      extra_applications: [:logger]
+    ]
+  end
+
+  defp deps do
+    [
+      {:req, "~> 0.5"},
+      {:jason, "~> 1.4"},
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      {:ex_doc, "~> 0.34", only: :dev, runtime: false},
+      {:exvcr, "~> 0.15", only: :test},
+      {:excoveralls, "~> 0.18", only: :test}
+    ]
+  end
+
+  defp description do
+    "Elixir client for the Listmonk open-source email platform API"
+  end
+
+  defp package do
+    [
+      name: "listmonk_client",
+      files: ~w(lib .formatter.exs mix.exs README.md USAGE.md LICENSE),
+      licenses: ["MIT"],
+      links: %{
+        "GitHub" => @source_url,
+        "Listmonk" => "https://listmonk.app"
+      },
+      maintainers: ["Andriyan Ivanov"]
+    ]
+  end
+
+  defp docs do
+    [
+      main: "readme",
+      extras: ["README.md", "USAGE.md"],
+      source_ref: "v#{@version}",
+      source_url: @source_url
+    ]
+  end
+end
