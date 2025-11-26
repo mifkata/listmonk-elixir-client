@@ -51,10 +51,10 @@ Check if your Listmonk instance is healthy and accessible:
 
 ```elixir
 # Safe variant
-{:ok, true} = Listmonk.is_healthy()
+{:ok, true} = Listmonk.healthy?()
 
 # Bang variant (raises on error)
-true = Listmonk.is_healthy!()
+true = Listmonk.healthy!()
 ```
 
 ## Subscribers

@@ -36,7 +36,6 @@
 
           # Refactoring Checks
           {Credo.Check.Refactor.CondStatements, []},
-          {Credo.Check.Refactor.MapInto, []},
 
           # Warning Checks
           {Credo.Check.Warning.BoolOperationOnSameValues, []},
@@ -50,7 +49,10 @@
           {Credo.Check.Warning.UnusedStringOperation, []},
           {Credo.Check.Warning.UnusedTupleOperation, []}
         ],
-        disabled: []
+        disabled: [
+          # Not compatible with Elixir >= 1.8.0
+          {Credo.Check.Refactor.MapInto, []}
+        ]
       }
     }
   ]

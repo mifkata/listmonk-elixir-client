@@ -54,7 +54,7 @@ config = %Listmonk.Config{
 
 ```elixir
 # Check health
-{:ok, healthy} = Listmonk.is_healthy()
+{:ok, healthy} = Listmonk.healthy?()
 
 # Get all lists
 {:ok, lists} = Listmonk.get_lists()

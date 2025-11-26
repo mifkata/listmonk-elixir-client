@@ -44,20 +44,20 @@ defmodule Listmonk do
 
   ## Examples
 
-      iex> Listmonk.is_healthy()
+      iex> Listmonk.healthy?()
       {:ok, true}
 
-      iex> Listmonk.is_healthy(config)
+      iex> Listmonk.healthy?(config)
       {:ok, true}
   """
-  @spec is_healthy(Config.t() | nil) :: {:ok, boolean()} | {:error, term()}
-  defdelegate is_healthy(config \\ nil), to: Listmonk.Client
+  @spec healthy?(Config.t() | nil) :: {:ok, boolean()} | {:error, term()}
+  defdelegate healthy?(config \\ nil), to: Listmonk.Client
 
   @doc """
   Checks the health of the Listmonk instance. Raises on error.
   """
-  @spec is_healthy!(Config.t() | nil) :: boolean()
-  defdelegate is_healthy!(config \\ nil), to: Listmonk.Client
+  @spec healthy!(Config.t() | nil) :: boolean()
+  defdelegate healthy!(config \\ nil), to: Listmonk.Client
 
   # Subscriber functions
   @doc "See `Listmonk.Subscribers.get/2`"

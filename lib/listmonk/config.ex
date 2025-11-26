@@ -131,7 +131,7 @@ defmodule Listmonk.Config do
       %Listmonk.Config{url: "...", username: "...", password: "..."}
   """
   @spec from_env() :: t()
-  def from_env do
+  def from_env() do
     %__MODULE__{
       url: get_env("LISTMONK_URL"),
       username: get_env("LISTMONK_USERNAME"),

@@ -15,11 +15,11 @@ defmodule Listmonk.Client do
 
   ## Examples
 
-      iex> Listmonk.Client.is_healthy()
+      iex> Listmonk.Client.healthy?()
       {:ok, true}
   """
-  @spec is_healthy(Config.t() | nil) :: {:ok, boolean()} | {:error, term()}
-  def is_healthy(config \\ nil) do
+  @spec healthy?(Config.t() | nil) :: {:ok, boolean()} | {:error, term()}
+  def healthy?(config \\ nil) do
     with {:ok, config} <- resolve_config(config),
          {:ok, response} <- get("/api/health", config) do
       {:ok, get_in(response, ["data"]) == true}
@@ -29,9 +29,9 @@ defmodule Listmonk.Client do
   @doc """
   Checks if the Listmonk instance is healthy. Raises on error.
   """
-  @spec is_healthy!(Config.t() | nil) :: boolean()
-  def is_healthy!(config \\ nil) do
-    case is_healthy(config) do
+  @spec healthy!(Config.t() | nil) :: boolean()
+  def healthy!(config \\ nil) do
+    case healthy?(config) do
       {:ok, result} -> result
       {:error, error} -> raise error
     end
