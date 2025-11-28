@@ -67,7 +67,7 @@ defmodule Listmonk.Lists do
         if list_data do
           {:ok, MailingList.from_api(list_data)}
         else
-          {:error, Error.new("List with ID #{id} not found")}
+          {:ok, nil}
         end
 
       error ->

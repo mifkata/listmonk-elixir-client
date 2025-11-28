@@ -14,7 +14,8 @@ defmodule Listmonk.MixProject do
       description: description(),
       package: package(),
       docs: docs(),
-      test_coverage: [tool: ExCoveralls]
+      test_coverage: [tool: ExCoveralls],
+      dialyzer: dialyzer()
     ]
   end
 
@@ -41,9 +42,17 @@ defmodule Listmonk.MixProject do
       {:req, "~> 0.5"},
       {:jason, "~> 1.4"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:ex_doc, "~> 0.34", only: :dev, runtime: false},
       {:exvcr, "~> 0.15", only: :test},
       {:excoveralls, "~> 0.18", only: :test}
+    ]
+  end
+
+  defp dialyzer do
+    [
+      plt_file: {:no_warn, "priv/plts/dialyzer.plt"},
+      plt_add_apps: [:mix]
     ]
   end
 

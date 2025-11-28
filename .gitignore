@@ -12,6 +12,10 @@ erl_crash.dump
 /listmonk-base
 *.bak
 
+# Dialyzer
+/priv/plts/*.plt
+/priv/plts/*.plt.hash
+
 # Environment files
 *.env
 *.env.*

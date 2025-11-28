@@ -120,32 +120,18 @@ make help
 # Install dependencies
 make install
 
-# Run all checks (format, lint, compile)
+# Run all checks (format, lint, dialyzer, compile)
 make all
 
 # Individual commands
 make format        # Format code
 make lint          # Run Credo linter
+make dialyzer      # Run Dialyzer static analysis
 make compile       # Compile project
 make console       # Start IEx console (loads .env if exists)
 make docs          # Generate documentation
 ```
 
-Or use Mix directly:
-
-```bash
-# Get dependencies
-mix deps.get
-
-# Compile
-mix compile
-
-# Run linter
-mix credo
-
-# Format code
-mix format
-```
 
 ## License
 
