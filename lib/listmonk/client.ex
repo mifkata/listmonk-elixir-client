@@ -45,7 +45,7 @@ defmodule Listmonk.Client do
       iex> Listmonk.Client.get("/api/lists", config)
       {:ok, %{"data" => %{"results" => [...]}}}
   """
-  @spec get(String.t(), Config.t(), keyword()) :: {:ok, map()} | {:error, Error.t()}
+  @spec get(String.t(), Config.t() | nil, keyword()) :: {:ok, map()} | {:error, Error.t()}
   def get(path, config, opts \\ []) do
     request(:get, path, config, opts)
   end
@@ -53,7 +53,7 @@ defmodule Listmonk.Client do
   @doc """
   Makes a GET request to the Listmonk API. Raises on error.
   """
-  @spec get!(String.t(), Config.t(), keyword()) :: map()
+  @spec get!(String.t(), Config.t() | nil, keyword()) :: map()
   def get!(path, config, opts \\ []) do
     case get(path, config, opts) do
       {:ok, response} -> response
@@ -69,7 +69,7 @@ defmodule Listmonk.Client do
       iex> Listmonk.Client.post("/api/subscribers", config, json: %{email: "test@example.com"})
       {:ok, %{"data" => %{...}}}
   """
-  @spec post(String.t(), Config.t(), keyword()) :: {:ok, map()} | {:error, Error.t()}
+  @spec post(String.t(), Config.t() | nil, keyword()) :: {:ok, map()} | {:error, Error.t()}
   def post(path, config, opts \\ []) do
     request(:post, path, config, opts)
   end
@@ -77,7 +77,7 @@ defmodule Listmonk.Client do
   @doc """
   Makes a POST request to the Listmonk API. Raises on error.
   """
-  @spec post!(String.t(), Config.t(), keyword()) :: map()
+  @spec post!(String.t(), Config.t() | nil, keyword()) :: map()
   def post!(path, config, opts \\ []) do
     case post(path, config, opts) do
       {:ok, response} -> response
@@ -93,7 +93,7 @@ defmodule Listmonk.Client do
       iex> Listmonk.Client.put("/api/subscribers/1", config, json: %{name: "Updated"})
       {:ok, %{"data" => %{...}}}
   """
-  @spec put(String.t(), Config.t(), keyword()) :: {:ok, map()} | {:error, Error.t()}
+  @spec put(String.t(), Config.t() | nil, keyword()) :: {:ok, map()} | {:error, Error.t()}
   def put(path, config, opts \\ []) do
     request(:put, path, config, opts)
   end
@@ -101,7 +101,7 @@ defmodule Listmonk.Client do
   @doc """
   Makes a PUT request to the Listmonk API. Raises on error.
   """
-  @spec put!(String.t(), Config.t(), keyword()) :: map()
+  @spec put!(String.t(), Config.t() | nil, keyword()) :: map()
   def put!(path, config, opts \\ []) do
     case put(path, config, opts) do
       {:ok, response} -> response
@@ -117,7 +117,7 @@ defmodule Listmonk.Client do
       iex> Listmonk.Client.delete("/api/subscribers/1", config)
       {:ok, %{"data" => true}}
   """
-  @spec delete(String.t(), Config.t(), keyword()) :: {:ok, map()} | {:error, Error.t()}
+  @spec delete(String.t(), Config.t() | nil, keyword()) :: {:ok, map()} | {:error, Error.t()}
   def delete(path, config, opts \\ []) do
     request(:delete, path, config, opts)
   end
@@ -125,7 +125,7 @@ defmodule Listmonk.Client do
   @doc """
   Makes a DELETE request to the Listmonk API. Raises on error.
   """
-  @spec delete!(String.t(), Config.t(), keyword()) :: map()
+  @spec delete!(String.t(), Config.t() | nil, keyword()) :: map()
   def delete!(path, config, opts \\ []) do
     case delete(path, config, opts) do
       {:ok, response} -> response
