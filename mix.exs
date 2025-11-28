@@ -76,7 +76,7 @@ defmodule Listmonk.MixProject do
   defp docs do
     [
       main: "readme",
-      extras: ["README.md", "USAGE.md"],
+      extras: ["README.md", "USAGE.md", "CHANGELOG.md"],
       source_ref: "v#{@version}",
       source_url: @source_url
     ]
