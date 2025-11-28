@@ -1,4 +1,4 @@
-# Listmonk Elixir Client - Usage Guide
+# Usage
 
 Comprehensive guide to using the Listmonk Elixir client library.
 

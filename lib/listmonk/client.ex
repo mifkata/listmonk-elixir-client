@@ -8,7 +8,7 @@ defmodule Listmonk.Client do
 
   alias Listmonk.{Config, Error}
 
-  @user_agent "Listmonk-Elixir-Client/0.1.0"
+  @user_agent "Listmonk-Elixir-Client/0.2.0"
 
   @doc """
   Checks if the Listmonk instance is healthy.
