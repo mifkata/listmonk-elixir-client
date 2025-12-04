@@ -49,19 +49,23 @@ jobs:
     - name: Compile (warnings as errors)
       run: mix compile --warnings-as-errors
 
-    - name: Update version in mix.exs
+    - name: Update version in mix.exs and README.md
       run: |
-        sed -i 's/version "[^"]*"/version "'"$VERSION"'"/' mix.exs
+        # Update mix.exs version
+        sed -i 's/@version "[^"]*"/@version "'"$VERSION"'"/' mix.exs
+        # Update README.md installation instructions
+        sed -i 's/{:listmonk_client, "~> [^"]*"}/{:listmonk_client, "~> '"$VERSION"'"}/' README.md
+        # Commit changes
         git config user.name "GitHub Actions"
         git config user.email "actions@github.com"
-        git add mix.exs
+        git add mix.exs README.md
         git commit -m "Bump version to $VERSION"
 
-    - name: Create git tag
+    - name: Push changes and create tag
       run: |
+        git push origin main
         git tag "v$VERSION"
         git push origin "v$VERSION"
-        git push origin main
 
     - name: Publish to Hex.pm
       env:
