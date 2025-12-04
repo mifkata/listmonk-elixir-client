@@ -11,6 +11,11 @@
 - `Listmonk.set_config/2` to update configuration at runtime
 - `Listmonk.stop/1` to stop a client process
 - `Listmonk.Server` module implementing the GenServer
+- Keyword list config support (in addition to `%Config{}` struct)
+- Test suite using Bypass for HTTP request mocking
+- `make test` command for running tests
+- Tests in CI pipeline for push/PR events
+- Tests required before publishing to Hex.pm
 
 ### Changed
 

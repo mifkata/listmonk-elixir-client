@@ -4,6 +4,7 @@ Comprehensive guide to using the Listmonk Elixir client library.
 
 ## Table of Contents
 
+- [Getting Started](#getting-started)
 - [Configuration](#configuration)
 - [Health Checks](#health-checks)
 - [Subscribers](#subscribers)
@@ -13,9 +14,57 @@ Comprehensive guide to using the Listmonk Elixir client library.
 - [Transactional Emails](#transactional-emails)
 - [Error Handling](#error-handling)
 
+## Getting Started
+
+The Listmonk client uses a process-based architecture. You start a client process and then use it for all API calls:
+
+```elixir
+# Create a client with a named alias
+config = %Listmonk.Config{
+  url: "https://listmonk.example.com",
+  username: "admin",
+  password: "your_password_or_api_key"
+}
+
+{:ok, _pid} = Listmonk.new(config, :my_listmonk)
+
+# Now use the alias for all operations
+{:ok, lists} = Listmonk.get_lists(:my_listmonk)
+{:ok, subscribers} = Listmonk.get_subscribers(:my_listmonk)
+```
+
+Or use without a name (pid-based):
+
+```elixir
+{:ok, pid} = Listmonk.new(config)
+{:ok, lists} = Listmonk.get_lists(pid)
+```
+
 ## Configuration
 
-The client supports two configuration methods:
+### Using a Config Struct
+
+```elixir
+config = %Listmonk.Config{
+  url: "https://listmonk.example.com",
+  username: "admin",
+  password: "your_password_or_api_key"
+}
+
+{:ok, _pid} = Listmonk.new(config, :listmonk)
+```
+
+### Using a Keyword List
+
+```elixir
+config = [
+  url: "https://listmonk.example.com",
+  username: "admin",
+  password: "your_password_or_api_key"
+]
+
+{:ok, _pid} = Listmonk.new(config, :listmonk)
+```
 
 ### Environment Variables
 
@@ -34,25 +83,30 @@ export LISTMONK_USERNAME=admin
 export LISTMONK_PASSWORD=your_password_or_api_key
 ```
 
-Then use the client without passing config:
+Then resolve config from environment:
 
 ```elixir
-{:ok, lists} = Listmonk.get_lists()
+config = Listmonk.Config.from_env()
+{:ok, _pid} = Listmonk.new(config, :listmonk)
 ```
 
-### Runtime Configuration
+### Managing Client Configuration
 
 ```elixir
-config = %Listmonk.Config{
-  url: "https://listmonk.example.com",
+# Get current config
+config = Listmonk.get_config(:listmonk)
+
+# Update config at runtime
+new_config = %Listmonk.Config{
+  url: "https://new-instance.example.com",
   username: "admin",
-  password: "your_password_or_api_key"
+  password: "new_password"
 }
+:ok = Listmonk.set_config(:listmonk, new_config)
 
-{:ok, lists} = Listmonk.get_lists(config)
+# Stop client when done
+:ok = Listmonk.stop(:listmonk)
 ```
-
-Runtime configuration takes precedence over environment variables.
 
 ## Health Checks
 
@@ -60,10 +114,10 @@ Check if your Listmonk instance is healthy and accessible:
 
 ```elixir
 # Safe variant
-{:ok, true} = Listmonk.healthy?()
+{:ok, true} = Listmonk.healthy?(:listmonk)
 
 # Bang variant (raises on error)
-true = Listmonk.healthy!()
+true = Listmonk.healthy!(:listmonk)
 ```
 
 ## Subscribers
@@ -72,18 +126,18 @@ true = Listmonk.healthy!()
 
 ```elixir
 # Get all subscribers
-{:ok, subscribers} = Listmonk.get_subscribers()
+{:ok, subscribers} = Listmonk.get_subscribers(:listmonk)
 
 # Get subscribers from a specific list
-{:ok, subscribers} = Listmonk.get_subscribers(list_id: 1)
+{:ok, subscribers} = Listmonk.get_subscribers(:listmonk, list_id: 1)
 
 # Query subscribers with SQL
-{:ok, subscribers} = Listmonk.get_subscribers(
+{:ok, subscribers} = Listmonk.get_subscribers(:listmonk,
   query: "subscribers.attribs->>'city' = 'Portland'"
 )
 
 # Pagination
-{:ok, subscribers} = Listmonk.get_subscribers(
+{:ok, subscribers} = Listmonk.get_subscribers(:listmonk,
   page: 1,
   per_page: 50
 )
@@ -93,19 +147,19 @@ true = Listmonk.healthy!()
 
 ```elixir
 # By email
-{:ok, subscriber} = Listmonk.get_subscriber_by_email("user@example.com")
+{:ok, subscriber} = Listmonk.get_subscriber_by_email(:listmonk, "user@example.com")
 
 # By ID
-{:ok, subscriber} = Listmonk.get_subscriber_by_id(123)
+{:ok, subscriber} = Listmonk.get_subscriber_by_id(:listmonk, 123)
 
 # By UUID
-{:ok, subscriber} = Listmonk.get_subscriber_by_uuid("c37786af-e6ab-4260...")
+{:ok, subscriber} = Listmonk.get_subscriber_by_uuid(:listmonk, "c37786af-e6ab-4260...")
 ```
 
 ### Create Subscriber
 
 ```elixir
-{:ok, subscriber} = Listmonk.create_subscriber(%{
+{:ok, subscriber} = Listmonk.create_subscriber(:listmonk, %{
   email: "user@example.com",
   name: "Jane Doe",
   lists: [1, 2],  # List IDs to subscribe to
@@ -122,9 +176,9 @@ true = Listmonk.healthy!()
 ### Update Subscriber
 
 ```elixir
-subscriber = Listmonk.get_subscriber_by_email!("user@example.com")
+subscriber = Listmonk.get_subscriber_by_email!(:listmonk, "user@example.com")
 
-{:ok, updated} = Listmonk.update_subscriber(subscriber, %{
+{:ok, updated} = Listmonk.update_subscriber(:listmonk, subscriber, %{
   name: "Jane Smith",
   attribs: %{"plan" => "enterprise"},
   add_lists: [3, 4],
@@ -135,26 +189,26 @@ subscriber = Listmonk.get_subscriber_by_email!("user@example.com")
 ### Subscriber Status Management
 
 ```elixir
-subscriber = Listmonk.get_subscriber_by_id!(123)
+subscriber = Listmonk.get_subscriber_by_id!(:listmonk, 123)
 
 # Enable subscriber
-{:ok, enabled} = Listmonk.enable_subscriber(subscriber)
+{:ok, enabled} = Listmonk.enable_subscriber(:listmonk, subscriber)
 
 # Disable subscriber
-{:ok, disabled} = Listmonk.disable_subscriber(subscriber)
+{:ok, disabled} = Listmonk.disable_subscriber(:listmonk, subscriber)
 
 # Block (unsubscribe) subscriber
-{:ok, blocked} = Listmonk.block_subscriber(subscriber)
+{:ok, blocked} = Listmonk.block_subscriber(:listmonk, subscriber)
 ```
 
 ### Delete Subscriber
 
 ```elixir
 # By email
-{:ok, true} = Listmonk.delete_subscriber("user@example.com")
+{:ok, true} = Listmonk.delete_subscriber(:listmonk, "user@example.com")
 
 # By ID
-{:ok, true} = Listmonk.delete_subscriber(123)
+{:ok, true} = Listmonk.delete_subscriber(:listmonk, 123)
 ```
 
 ### Confirm Opt-in
@@ -162,7 +216,7 @@ subscriber = Listmonk.get_subscriber_by_id!(123)
 For managing double opt-in confirmations:
 
 ```elixir
-{:ok, confirmed} = Listmonk.confirm_optin(
+{:ok, confirmed} = Listmonk.confirm_optin(:listmonk,
   subscriber_uuid,
   list_uuid
 )
@@ -174,16 +228,16 @@ For managing double opt-in confirmations:
 
 ```elixir
 # Get all lists
-{:ok, lists} = Listmonk.get_lists()
+{:ok, lists} = Listmonk.get_lists(:listmonk)
 
 # Get specific list by ID
-{:ok, list} = Listmonk.get_list_by_id(7)
+{:ok, list} = Listmonk.get_list_by_id(:listmonk, 7)
 ```
 
 ### Create List
 
 ```elixir
-{:ok, list} = Listmonk.create_list(%{
+{:ok, list} = Listmonk.create_list(:listmonk, %{
   name: "Newsletter",
   type: :public,  # :public or :private
   optin: :single,  # :single or :double
@@ -195,7 +249,7 @@ For managing double opt-in confirmations:
 ### Delete List
 
 ```elixir
-{:ok, true} = Listmonk.delete_list(7)
+{:ok, true} = Listmonk.delete_list(:listmonk, 7)
 ```
 
 ## Campaigns
@@ -204,19 +258,19 @@ For managing double opt-in confirmations:
 
 ```elixir
 # Get all campaigns
-{:ok, campaigns} = Listmonk.get_campaigns()
+{:ok, campaigns} = Listmonk.get_campaigns(:listmonk)
 
 # Get specific campaign
-{:ok, campaign} = Listmonk.get_campaign_by_id(15)
+{:ok, campaign} = Listmonk.get_campaign_by_id(:listmonk, 15)
 
 # Preview campaign
-{:ok, html} = Listmonk.preview_campaign(15)
+{:ok, html} = Listmonk.preview_campaign(:listmonk, 15)
 ```
 
 ### Create Campaign
 
 ```elixir
-{:ok, campaign} = Listmonk.create_campaign(%{
+{:ok, campaign} = Listmonk.create_campaign(:listmonk, %{
   name: "Monthly Newsletter - January",
   subject: "Great updates this month!",
   lists: [1, 2],
@@ -234,9 +288,9 @@ For managing double opt-in confirmations:
 ### Update Campaign
 
 ```elixir
-campaign = Listmonk.get_campaign_by_id!(15)
+campaign = Listmonk.get_campaign_by_id!(:listmonk, 15)
 
-{:ok, updated} = Listmonk.update_campaign(campaign, %{
+{:ok, updated} = Listmonk.update_campaign(:listmonk, campaign, %{
   name: "Updated Campaign Name",
   subject: "Even better subject!",
   body: "<h1>Updated content</h1>"
@@ -246,7 +300,7 @@ campaign = Listmonk.get_campaign_by_id!(15)
 ### Delete Campaign
 
 ```elixir
-{:ok, true} = Listmonk.delete_campaign(15)
+{:ok, true} = Listmonk.delete_campaign(:listmonk, 15)
 ```
 
 ## Templates
@@ -255,20 +309,20 @@ campaign = Listmonk.get_campaign_by_id!(15)
 
 ```elixir
 # Get all templates
-{:ok, templates} = Listmonk.get_templates()
+{:ok, templates} = Listmonk.get_templates(:listmonk)
 
 # Get specific template
-{:ok, template} = Listmonk.get_template_by_id(2)
+{:ok, template} = Listmonk.get_template_by_id(:listmonk, 2)
 
 # Preview template
-{:ok, html} = Listmonk.preview_template(2)
+{:ok, html} = Listmonk.preview_template(:listmonk, 2)
 ```
 
 ### Create Template
 
 ```elixir
 # Campaign template
-{:ok, template} = Listmonk.create_template(%{
+{:ok, template} = Listmonk.create_template(:listmonk, %{
   name: "My Campaign Template",
   type: :campaign,
   body: """
@@ -285,7 +339,7 @@ campaign = Listmonk.get_campaign_by_id!(15)
 })
 
 # Transactional template
-{:ok, tx_template} = Listmonk.create_template(%{
+{:ok, tx_template} = Listmonk.create_template(:listmonk, %{
   name: "Password Reset",
   type: :tx,
   subject: "Reset your password",
@@ -305,9 +359,9 @@ campaign = Listmonk.get_campaign_by_id!(15)
 ### Update Template
 
 ```elixir
-template = Listmonk.get_template_by_id!(2)
+template = Listmonk.get_template_by_id!(:listmonk, 2)
 
-{:ok, updated} = Listmonk.update_template(template, %{
+{:ok, updated} = Listmonk.update_template(:listmonk, template, %{
   name: "Updated Template Name",
   body: "<html>...</html>"
 })
@@ -316,13 +370,13 @@ template = Listmonk.get_template_by_id!(2)
 ### Set Default Template
 
 ```elixir
-{:ok, true} = Listmonk.set_default_template(2)
+{:ok, true} = Listmonk.set_default_template(:listmonk, 2)
 ```
 
 ### Delete Template
 
 ```elixir
-{:ok, true} = Listmonk.delete_template(3)
+{:ok, true} = Listmonk.delete_template(:listmonk, 3)
 ```
 
 ## Transactional Emails
@@ -332,7 +386,7 @@ Send individual transactional emails using TX templates:
 ### Basic Transactional Email
 
 ```elixir
-{:ok, sent} = Listmonk.send_transactional_email(%{
+{:ok, sent} = Listmonk.send_transactional_email(:listmonk, %{
   subscriber_email: "user@example.com",
   template_id: 3,
   from_email: "app@example.com",  # Optional
@@ -347,7 +401,7 @@ Send individual transactional emails using TX templates:
 ### With Custom Headers
 
 ```elixir
-{:ok, sent} = Listmonk.send_transactional_email(%{
+{:ok, sent} = Listmonk.send_transactional_email(:listmonk, %{
   subscriber_email: "user@example.com",
   template_id: 3,
   headers: [
@@ -361,7 +415,7 @@ Send individual transactional emails using TX templates:
 ### With File Attachments
 
 ```elixir
-{:ok, sent} = Listmonk.send_transactional_email(%{
+{:ok, sent} = Listmonk.send_transactional_email(:listmonk, %{
   subscriber_email: "user@example.com",
   template_id: 3,
   attachments: [
@@ -378,7 +432,7 @@ Send individual transactional emails using TX templates:
 
 ```elixir
 # HTML (default)
-{:ok, sent} = Listmonk.send_transactional_email(%{
+{:ok, sent} = Listmonk.send_transactional_email(:listmonk, %{
   subscriber_email: "user@example.com",
   template_id: 3,
   content_type: :html,
@@ -386,7 +440,7 @@ Send individual transactional emails using TX templates:
 })
 
 # Markdown
-{:ok, sent} = Listmonk.send_transactional_email(%{
+{:ok, sent} = Listmonk.send_transactional_email(:listmonk, %{
   subscriber_email: "user@example.com",
   template_id: 3,
   content_type: :markdown,
@@ -394,7 +448,7 @@ Send individual transactional emails using TX templates:
 })
 
 # Plain text
-{:ok, sent} = Listmonk.send_transactional_email(%{
+{:ok, sent} = Listmonk.send_transactional_email(:listmonk, %{
   subscriber_email: "user@example.com",
   template_id: 3,
   content_type: :plain,
@@ -407,9 +461,12 @@ Send individual transactional emails using TX templates:
 All functions return `{:ok, result}` or `{:error, %Listmonk.Error{}}` tuples:
 
 ```elixir
-case Listmonk.get_subscriber_by_email("user@example.com") do
+case Listmonk.get_subscriber_by_email(:listmonk, "user@example.com") do
   {:ok, subscriber} ->
     IO.puts("Found subscriber: #{subscriber.name}")
+
+  {:ok, nil} ->
+    IO.puts("Subscriber not found")
 
   {:error, %Listmonk.Error{message: message}} ->
     IO.puts("Error: #{message}")
@@ -422,7 +479,7 @@ Bang variants raise exceptions on error:
 
 ```elixir
 try do
-  subscriber = Listmonk.get_subscriber_by_email!("user@example.com")
+  subscriber = Listmonk.get_subscriber_by_email!(:listmonk, "user@example.com")
   IO.puts("Found: #{subscriber.name}")
 rescue
   e in Listmonk.Error ->
@@ -443,27 +500,27 @@ end
 
 ## Advanced Usage
 
-### Custom Configuration Per Request
+### Multiple Listmonk Instances
+
+You can connect to multiple Listmonk instances simultaneously:
 
 ```elixir
-# Use environment config for most requests
-{:ok, lists} = Listmonk.get_lists()
+# Production instance
+{:ok, _} = Listmonk.new(prod_config, :prod_listmonk)
 
-# Override for specific request
-custom_config = %Listmonk.Config{
-  url: "https://different-instance.com",
-  username: "other_user",
-  password: "other_pass"
-}
+# Staging instance
+{:ok, _} = Listmonk.new(staging_config, :staging_listmonk)
 
-{:ok, campaigns} = Listmonk.get_campaigns(custom_config)
+# Use different instances
+{:ok, prod_lists} = Listmonk.get_lists(:prod_listmonk)
+{:ok, staging_lists} = Listmonk.get_lists(:staging_listmonk)
 ```
 
 ### Working with Subscriber Attributes
 
 ```elixir
 # Create with custom attributes
-{:ok, subscriber} = Listmonk.create_subscriber(%{
+{:ok, subscriber} = Listmonk.create_subscriber(:listmonk, %{
   email: "user@example.com",
   name: "Jane Doe",
   lists: [1],
@@ -475,14 +532,14 @@ custom_config = %Listmonk.Config{
 })
 
 # Query by attributes
-{:ok, premium_users} = Listmonk.get_subscribers(
+{:ok, premium_users} = Listmonk.get_subscribers(:listmonk,
   query: "subscribers.attribs->>'plan' = 'premium'"
 )
 
 # Update attributes
-subscriber = Listmonk.get_subscriber_by_email!("user@example.com")
+subscriber = Listmonk.get_subscriber_by_email!(:listmonk, "user@example.com")
 
-{:ok, updated} = Listmonk.update_subscriber(subscriber, %{
+{:ok, updated} = Listmonk.update_subscriber(:listmonk, subscriber, %{
   attribs: Map.merge(subscriber.attribs, %{
     "credits" => 150,
     "last_purchase" => "2025-01-15"
@@ -497,7 +554,7 @@ subscriber = Listmonk.get_subscriber_by_email!("user@example.com")
 emails = ["user1@example.com", "user2@example.com", "user3@example.com"]
 
 results = Enum.map(emails, fn email ->
-  Listmonk.create_subscriber(%{
+  Listmonk.create_subscriber(:listmonk, %{
     email: email,
     name: email,
     lists: [1]
@@ -510,14 +567,37 @@ failures = Enum.filter(results, &match?({:error, _}, &1))
 IO.puts("Created: #{length(successes)}, Failed: #{length(failures)}")
 ```
 
+### Using with Supervision Trees
+
+```elixir
+# In your application.ex
+def start(_type, _args) do
+  children = [
+    # ... other children
+    {Listmonk.Server, config: listmonk_config(), name: :listmonk}
+  ]
+
+  opts = [strategy: :one_for_one, name: MyApp.Supervisor]
+  Supervisor.start_link(children, opts)
+end
+
+defp listmonk_config do
+  %Listmonk.Config{
+    url: System.get_env("LISTMONK_URL"),
+    username: System.get_env("LISTMONK_USERNAME"),
+    password: System.get_env("LISTMONK_PASSWORD")
+  }
+end
+```
+
 ## Best Practices
 
-1. **Use Environment Variables**: For production, configure via environment variables
+1. **Use Named Clients**: Use atoms like `:listmonk` for easier reference throughout your app
 2. **Handle Errors**: Always handle both success and error cases
 3. **Validate Email Addresses**: Validate emails before creating subscribers
-4. **Use Transactions**: For critical operations, wrap in database transactions
+4. **Use Supervision**: Add the client to your supervision tree for automatic restarts
 5. **Rate Limiting**: Implement rate limiting for bulk operations
-6. **Monitor Health**: Regularly check instance health
+6. **Monitor Health**: Regularly check instance health with `Listmonk.healthy?/1`
 7. **Preconfirm Carefully**: Only use `preconfirm: true` when you've verified opt-in yourself
 
 ## More Information

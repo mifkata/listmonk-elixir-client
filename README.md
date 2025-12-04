@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="image.png" alt="Listmonk Elixir Client">
+</p>
+
 # Listmonk Elixir Client
 
 [![CI](https://github.com/mifkata/listmonk-elixir-client/actions/workflows/ci.yml/badge.svg)](https://github.com/mifkata/listmonk-elixir-client/actions/workflows/ci.yml)
@@ -38,42 +42,51 @@ end
 
 ### Configuration
 
-For local development, copy the example environment file:
+Configure at runtime using a struct or keyword list:
+
+```elixir
+# Using a struct
+config = %Listmonk.Config{
+  url: "https://listmonk.example.com",
+  username: "admin",
+  password: "your_password_or_api_key"
+}
+
+# Or using a keyword list
+config = [
+  url: "https://listmonk.example.com",
+  username: "admin",
+  password: "your_password_or_api_key"
+]
+```
+
+For local development, you can also use environment variables:
 
 ```bash
 cp .env.example .env
 # Edit .env with your Listmonk instance details
 ```
 
-Or set environment variables directly:
-
-```bash
-export LISTMONK_URL=https://listmonk.example.com
-export LISTMONK_USERNAME=admin
-export LISTMONK_PASSWORD=your_password_or_api_key
-```
-
-Or configure at runtime:
+Then load from environment:
 
 ```elixir
-config = %Listmonk.Config{
-  url: "https://listmonk.example.com",
-  username: "admin",
-  password: "your_password_or_api_key"
-}
+config = Listmonk.Config.from_env()
 ```
 
 ### Basic Usage
 
 ```elixir
+# Start a client with a named alias
+{:ok, _pid} = Listmonk.new(config, :listmonk)
+
 # Check health
-{:ok, healthy} = Listmonk.healthy?()
+{:ok, true} = Listmonk.healthy?(:listmonk)
 
 # Get all lists
-{:ok, lists} = Listmonk.get_lists()
+{:ok, lists} = Listmonk.get_lists(:listmonk)
 
 # Create a subscriber
-{:ok, subscriber} = Listmonk.create_subscriber(%{
+{:ok, subscriber} = Listmonk.create_subscriber(:listmonk, %{
   email: "user@example.com",
   name: "Jane Doe",
   lists: [1],
@@ -81,7 +94,7 @@ config = %Listmonk.Config{
 })
 
 # Send a transactional email
-{:ok, sent} = Listmonk.send_transactional_email(%{
+{:ok, sent} = Listmonk.send_transactional_email(:listmonk, %{
   subscriber_email: "user@example.com",
   template_id: 3,
   data: %{
@@ -89,6 +102,9 @@ config = %Listmonk.Config{
     reset_code: "abc123"
   }
 })
+
+# Stop the client when done
+:ok = Listmonk.stop(:listmonk)
 ```
 
 **Quick testing with IEx console:**
@@ -97,8 +113,10 @@ config = %Listmonk.Config{
 make console
 # Your .env will be loaded automatically
 # Then try:
-Listmonk.healthy?()
-Listmonk.get_lists()
+config = Listmonk.Config.from_env()
+{:ok, _} = Listmonk.new(config, :listmonk)
+Listmonk.healthy?(:listmonk)
+Listmonk.get_lists(:listmonk)
 ```
 
 For detailed examples, see [USAGE.md](USAGE.md).
