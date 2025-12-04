@@ -95,6 +95,8 @@ jobs:
       run: mix deps.get
 
     - name: Check formatting
+      # Only check formatting on latest Elixir (formatting can differ between versions)
+      if: matrix.elixir == '1.17'
       run: mix format --check-formatted
 
     - name: Run Credo
