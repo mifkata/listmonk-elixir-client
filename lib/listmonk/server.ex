@@ -48,7 +48,7 @@ defmodule Listmonk.Server do
   @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts) do
     {name, opts} = Keyword.pop(opts, :name)
-    config = Keyword.fetch!(opts, :config)
+    config = Keyword.fetch!(opts, :config) |> normalize_config()
 
     case Config.validate(config) do
       :ok ->
@@ -150,6 +150,9 @@ defmodule Listmonk.Server do
 
   @user_agent "Listmonk-Elixir-Client/0.3.0"
 
+  defp normalize_config(%Config{} = config), do: config
+  defp normalize_config(opts) when is_list(opts), do: Config.new(opts)
+
   defp do_request(method, path, config, opts) do
     url = build_url(config.url, path)
 
@@ -159,7 +162,8 @@ defmodule Listmonk.Server do
         url: url,
         auth: {:basic, "#{config.username}:#{config.password}"},
         headers: [{"user-agent", @user_agent}],
-        receive_timeout: 30_000
+        receive_timeout: 30_000,
+        retry: false
       ]
       |> Keyword.merge(opts)
 

@@ -45,7 +45,8 @@ defmodule Listmonk.MixProject do
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:ex_doc, "~> 0.34", only: :dev, runtime: false},
       {:exvcr, "~> 0.15", only: :test},
-      {:excoveralls, "~> 0.18", only: :test}
+      {:excoveralls, "~> 0.18", only: :test},
+      {:bypass, "~> 2.1", only: :test}
     ]
   end
 
