@@ -1,4 +1,4 @@
-.PHONY: help install compile console format format-check lint lint-strict dialyzer clean docs all
+.PHONY: help install compile console format format-check lint lint-strict dialyzer test clean docs all
 
 # Default target
 help:
@@ -11,9 +11,10 @@ help:
 	@echo "  make lint          - Run Credo linter"
 	@echo "  make lint-strict   - Run Credo linter (strict mode)"
 	@echo "  make dialyzer      - Run Dialyzer static analysis"
+	@echo "  make test          - Run tests"
 	@echo "  make docs          - Generate documentation"
 	@echo "  make clean         - Clean build artifacts"
-	@echo "  make all           - Run format, lint, and dialyzer checks"
+	@echo "  make all           - Run format, lint, test, and dialyzer checks"
 
 # Install dependencies
 install:
@@ -53,6 +54,10 @@ lint-strict:
 dialyzer:
 	mix dialyzer
 
+# Run tests
+test:
+	mix test
+
 # Generate documentation
 docs:
 	mix docs
@@ -62,6 +67,6 @@ clean:
 	mix clean
 	rm -rf _build deps doc priv/plts/*.plt priv/plts/*.plt.hash
 
-# Run all checks (format, lint, dialyzer, compile)
-all: format lint dialyzer compile
+# Run all checks (format, lint, test, dialyzer, compile)
+all: format lint test dialyzer compile
 	@echo "✓ All checks passed!"

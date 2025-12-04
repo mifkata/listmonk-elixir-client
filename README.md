@@ -120,16 +120,18 @@ make help
 # Install dependencies
 make install
 
-# Run all checks (format, lint, dialyzer, compile)
+# Run all checks (format, lint, test, dialyzer, compile)
 make all
 
 # Individual commands
 make format        # Format code
 make lint          # Run Credo linter
+make test          # Run tests
 make dialyzer      # Run Dialyzer static analysis
 make compile       # Compile project
 make console       # Start IEx console (loads .env if exists)
 make docs          # Generate documentation
+make clean         # Clean build artifacts
 ```
 
 
