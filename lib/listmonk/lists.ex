@@ -3,22 +3,19 @@ defmodule Listmonk.Lists do
   Functions for managing Listmonk mailing lists.
   """
 
-  alias Listmonk.{Client, Config, Error}
+  alias Listmonk.{Server, Error}
   alias Listmonk.Models.MailingList
+
+  @type server :: pid() | atom()
 
   @doc """
   Retrieves all mailing lists.
-
-  ## Examples
-
-      iex> Listmonk.Lists.get()
-      {:ok, [%MailingList{}, ...]}
   """
-  @spec get(Config.t() | nil) :: {:ok, list(MailingList.t())} | {:error, Error.t()}
-  def get(config \\ nil) do
+  @spec get(server()) :: {:ok, list(MailingList.t())} | {:error, Error.t()}
+  def get(server) do
     path = "/api/lists?page=1&per_page=1000000"
 
-    case Client.get(path, config) do
+    case Server.request(server, :get, path) do
       {:ok, %{"data" => %{"results" => results}}} ->
         lists = Enum.map(results, &MailingList.from_api/1)
         {:ok, lists}
@@ -29,32 +26,14 @@ defmodule Listmonk.Lists do
   end
 
   @doc """
-  Retrieves all mailing lists. Raises on error.
-  """
-  @spec get!(Config.t() | nil) :: list(MailingList.t())
-  def get!(config \\ nil) do
-    case get(config) do
-      {:ok, lists} -> lists
-      {:error, error} -> raise error
-    end
-  end
-
-  @doc """
   Retrieves a mailing list by ID.
-
-  ## Examples
-
-      iex> Listmonk.Lists.get_by_id(7)
-      {:ok, %MailingList{}}
   """
-  @spec get_by_id(integer(), Config.t() | nil) ::
-          {:ok, MailingList.t() | nil} | {:error, Error.t()}
-  def get_by_id(id, config \\ nil) do
+  @spec get_by_id(server(), integer()) :: {:ok, MailingList.t() | nil} | {:error, Error.t()}
+  def get_by_id(server, id) do
     path = "/api/lists/#{id}"
 
-    case Client.get(path, config) do
+    case Server.request(server, :get, path) do
       {:ok, %{"data" => data}} when is_map(data) ->
-        # Handle the API bug where sometimes it returns results array
         list_data =
           case data do
             %{"results" => results} when is_list(results) ->
@@ -76,17 +55,6 @@ defmodule Listmonk.Lists do
   end
 
   @doc """
-  Retrieves a mailing list by ID. Raises on error.
-  """
-  @spec get_by_id!(integer(), Config.t() | nil) :: MailingList.t() | nil
-  def get_by_id!(id, config \\ nil) do
-    case get_by_id(id, config) do
-      {:ok, list} -> list
-      {:error, error} -> raise error
-    end
-  end
-
-  @doc """
   Creates a new mailing list.
 
   ## Attributes
@@ -96,24 +64,11 @@ defmodule Listmonk.Lists do
   - `:optin` - Opt-in type (:single or :double), default: :single
   - `:tags` - List of tags
   - `:description` - Description of the list
-
-  ## Examples
-
-      iex> Listmonk.Lists.create(%{name: "Newsletter"})
-      {:ok, %MailingList{}}
-
-      iex> Listmonk.Lists.create(%{
-      ...>   name: "VIP List",
-      ...>   type: :private,
-      ...>   optin: :double,
-      ...>   tags: ["vip", "premium"]
-      ...> })
-      {:ok, %MailingList{}}
   """
-  @spec create(map(), Config.t() | nil) :: {:ok, MailingList.t()} | {:error, Error.t()}
-  def create(attrs, config \\ nil) do
+  @spec create(server(), map()) :: {:ok, MailingList.t()} | {:error, Error.t()}
+  def create(server, attrs) do
     with {:ok, payload} <- build_create_payload(attrs) do
-      case Client.post("/api/lists", config, json: payload) do
+      case Server.request(server, :post, "/api/lists", json: payload) do
         {:ok, %{"data" => data}} -> {:ok, MailingList.from_api(data)}
         error -> error
       end
@@ -121,49 +76,22 @@ defmodule Listmonk.Lists do
   end
 
   @doc """
-  Creates a new mailing list. Raises on error.
-  """
-  @spec create!(map(), Config.t() | nil) :: MailingList.t()
-  def create!(attrs, config \\ nil) do
-    case create(attrs, config) do
-      {:ok, list} -> list
-      {:error, error} -> raise error
-    end
-  end
-
-  @doc """
   Deletes a mailing list by ID.
-
-  ## Examples
-
-      iex> Listmonk.Lists.delete(7)
-      {:ok, true}
   """
-  @spec delete(integer(), Config.t() | nil) :: {:ok, boolean()} | {:error, Error.t()}
-  def delete(id, config \\ nil) do
-    case get_by_id(id, config) do
+  @spec delete(server(), integer()) :: {:ok, boolean()} | {:error, Error.t()}
+  def delete(server, id) do
+    case get_by_id(server, id) do
       {:ok, nil} ->
         {:ok, false}
 
       {:ok, _list} ->
-        case Client.delete("/api/lists/#{id}", config) do
+        case Server.request(server, :delete, "/api/lists/#{id}") do
           {:ok, %{"data" => result}} -> {:ok, result == true}
           error -> error
         end
 
       error ->
         error
-    end
-  end
-
-  @doc """
-  Deletes a mailing list. Raises on error.
-  """
-  @spec delete!(integer(), Config.t() | nil) :: boolean()
-  def delete!(id, config \\ nil) do
-    case delete(id, config) do
-      {:ok, result} -> result
-      {:error, error} -> raise error
     end
   end
 

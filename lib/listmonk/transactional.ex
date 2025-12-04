@@ -3,7 +3,9 @@ defmodule Listmonk.Transactional do
   Functions for sending transactional emails via Listmonk.
   """
 
-  alias Listmonk.{Client, Config, Error}
+  alias Listmonk.{Server, Error}
+
+  @type server :: pid() | atom()
 
   @doc """
   Sends a transactional email.
@@ -18,42 +20,11 @@ defmodule Listmonk.Transactional do
   - `:content_type` - Content type (:html, :markdown, :plain), default: :html
   - `:attachments` - List of file paths to attach
   - `:headers` - List of custom email headers (e.g., `[%{"X-Custom" => "value"}]`)
-
-  ## Examples
-
-      iex> Listmonk.Transactional.send_email(%{
-      ...>   subscriber_email: "user@example.com",
-      ...>   template_id: 3,
-      ...>   from_email: "app@example.com",
-      ...>   data: %{
-      ...>     full_name: "John Doe",
-      ...>     reset_code: "abc123"
-      ...>   }
-      ...> })
-      {:ok, true}
-
-      iex> Listmonk.Transactional.send_email(%{
-      ...>   subscriber_email: "user@example.com",
-      ...>   template_id: 3,
-      ...>   attachments: ["/path/to/file.pdf"]
-      ...> })
-      {:ok, true}
   """
-  @spec send_email(map(), Config.t() | nil) :: {:ok, boolean()} | {:error, Error.t()}
-  def send_email(attrs, config \\ nil) do
+  @spec send_email(server(), map()) :: {:ok, boolean()} | {:error, Error.t()}
+  def send_email(server, attrs) do
     with {:ok, email, attachments} <- validate_and_prepare(attrs) do
-      send_request(email, attachments, config)
-    end
-  end
-
-  @doc """
-  Sends a transactional email. Raises on error.
-  """
-  @spec send_email!(map(), Config.t() | nil) :: boolean()
-  def send_email!(attrs, config \\ nil) do
-    case send_email(attrs, config) do
-      {:ok, result} -> result
-      {:error, error} -> raise error
+      send_request(server, email, attachments)
     end
   end
 
@@ -90,46 +61,45 @@ defmodule Listmonk.Transactional do
     e in ArgumentError -> {:error, Error.new(e.message)}
   end
 
-  defp send_request(email_data, [], config) do
+  defp send_request(server, email_data, []) do
     # No attachments - send as JSON
-    case Client.post("/api/tx", config, json: email_data) do
+    case Server.request(server, :post, "/api/tx", json: email_data) do
       {:ok, %{"data" => result}} -> {:ok, result == true}
       error -> error
     end
   end
 
-  defp send_request(email_data, attachments, config) do
+  defp send_request(server, email_data, attachments) do
     # With attachments - send as multipart form data
-    with {:ok, resolved_config} <- resolve_and_validate_config(config) do
-      url = build_url(resolved_config.url, "/api/tx")
+    # Get config from server to build direct request
+    config = Server.get_config(server)
+    url = build_url(config.url, "/api/tx")
 
-      # Prepare multipart form data
-      multipart =
-        {:multipart,
-         [
-           {"data", Jason.encode!(email_data), [{"content-type", "application/json"}]}
-           | build_file_parts(attachments)
-         ]}
+    multipart =
+      {:multipart,
+       [
+         {"data", Jason.encode!(email_data), [{"content-type", "application/json"}]}
+         | build_file_parts(attachments)
+       ]}
 
-      req_opts = [
-        method: :post,
-        url: url,
-        auth: {:basic, "#{resolved_config.username}:#{resolved_config.password}"},
-        body: multipart,
-        receive_timeout: 30_000
-      ]
+    req_opts = [
+      method: :post,
+      url: url,
+      auth: {:basic, "#{config.username}:#{config.password}"},
+      body: multipart,
+      receive_timeout: 30_000
+    ]
 
-      case Req.request(req_opts) do
-        {:ok, %Req.Response{status: status, body: body}} when status in 200..299 ->
-          result = get_in(body, ["data"]) || body
-          {:ok, result == true}
+    case Req.request(req_opts) do
+      {:ok, %Req.Response{status: status, body: body}} when status in 200..299 ->
+        result = get_in(body, ["data"]) || body
+        {:ok, result == true}
 
-        {:ok, %Req.Response{} = response} ->
-          {:error, Error.from_response(response)}
+      {:ok, %Req.Response{} = response} ->
+        {:error, Error.from_response(response)}
 
-        {:error, exception} ->
-          {:error, Error.new("Request failed: #{Exception.message(exception)}")}
-      end
+      {:error, exception} ->
+        {:error, Error.new("Request failed: #{Exception.message(exception)}")}
     end
   end
 
@@ -163,24 +133,6 @@ defmodule Listmonk.Transactional do
       content = File.read!(path)
       {"file", content, [{"filename", filename}], []}
     end)
-  end
-
-  defp resolve_and_validate_config(nil) do
-    config = Config.resolve(nil)
-
-    case Config.validate(config) do
-      :ok -> {:ok, config}
-      {:error, message} -> {:error, Error.new(message)}
-    end
-  end
-
-  defp resolve_and_validate_config(%Config{} = config) do
-    resolved = Config.resolve(config)
-
-    case Config.validate(resolved) do
-      :ok -> {:ok, resolved}
-      {:error, message} -> {:error, Error.new(message)}
-    end
   end
 
   defp build_url(base_url, path) do

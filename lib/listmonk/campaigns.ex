@@ -3,22 +3,19 @@ defmodule Listmonk.Campaigns do
   Functions for managing Listmonk campaigns.
   """
 
-  alias Listmonk.{Client, Config, Error}
+  alias Listmonk.{Server, Error}
   alias Listmonk.Models.Campaign
+
+  @type server :: pid() | atom()
 
   @doc """
   Retrieves all campaigns.
-
-  ## Examples
-
-      iex> Listmonk.Campaigns.get()
-      {:ok, [%Campaign{}, ...]}
   """
-  @spec get(Config.t() | nil) :: {:ok, list(Campaign.t())} | {:error, Error.t()}
-  def get(config \\ nil) do
+  @spec get(server()) :: {:ok, list(Campaign.t())} | {:error, Error.t()}
+  def get(server) do
     path = "/api/campaigns?page=1&per_page=1000000"
 
-    case Client.get(path, config) do
+    case Server.request(server, :get, path) do
       {:ok, %{"data" => %{"results" => results}}} ->
         campaigns = Enum.map(results, &Campaign.from_api/1)
         {:ok, campaigns}
@@ -29,29 +26,13 @@ defmodule Listmonk.Campaigns do
   end
 
   @doc """
-  Retrieves all campaigns. Raises on error.
-  """
-  @spec get!(Config.t() | nil) :: list(Campaign.t())
-  def get!(config \\ nil) do
-    case get(config) do
-      {:ok, campaigns} -> campaigns
-      {:error, error} -> raise error
-    end
-  end
-
-  @doc """
   Retrieves a campaign by ID.
-
-  ## Examples
-
-      iex> Listmonk.Campaigns.get_by_id(15)
-      {:ok, %Campaign{}}
   """
-  @spec get_by_id(integer(), Config.t() | nil) :: {:ok, Campaign.t() | nil} | {:error, Error.t()}
-  def get_by_id(id, config \\ nil) do
+  @spec get_by_id(server(), integer()) :: {:ok, Campaign.t() | nil} | {:error, Error.t()}
+  def get_by_id(server, id) do
     path = "/api/campaigns/#{id}"
 
-    case Client.get(path, config) do
+    case Server.request(server, :get, path) do
       {:ok, %{"data" => data}} when is_map(data) and map_size(data) > 0 ->
         {:ok, Campaign.from_api(data)}
 
@@ -64,43 +45,16 @@ defmodule Listmonk.Campaigns do
   end
 
   @doc """
-  Retrieves a campaign by ID. Raises on error.
-  """
-  @spec get_by_id!(integer(), Config.t() | nil) :: Campaign.t() | nil
-  def get_by_id!(id, config \\ nil) do
-    case get_by_id(id, config) do
-      {:ok, campaign} -> campaign
-      {:error, error} -> raise error
-    end
-  end
-
-  @doc """
   Retrieves a campaign preview by ID.
-
-  ## Examples
-
-      iex> Listmonk.Campaigns.preview(15)
-      {:ok, "<html>...</html>"}
   """
-  @spec preview(integer(), Config.t() | nil) :: {:ok, String.t()} | {:error, Error.t()}
-  def preview(id, config \\ nil) do
+  @spec preview(server(), integer()) :: {:ok, String.t()} | {:error, Error.t()}
+  def preview(server, id) do
     path = "/api/campaigns/#{id}/preview"
 
-    case Client.get(path, config) do
+    case Server.request(server, :get, path) do
       {:ok, %{"data" => preview}} when is_binary(preview) -> {:ok, preview}
       {:ok, response} -> {:ok, to_string(response)}
       error -> error
-    end
-  end
-
-  @doc """
-  Retrieves a campaign preview. Raises on error.
-  """
-  @spec preview!(integer(), Config.t() | nil) :: String.t()
-  def preview!(id, config \\ nil) do
-    case preview(id, config) do
-      {:ok, preview} -> preview
-      {:error, error} -> raise error
     end
   end
 
@@ -122,21 +76,11 @@ defmodule Listmonk.Campaigns do
   - `:template_id` - Template ID to use
   - `:tags` - List of tags
   - `:headers` - Custom email headers map
-
-  ## Examples
-
-      iex> Listmonk.Campaigns.create(%{
-      ...>   name: "Monthly Newsletter",
-      ...>   subject: "Great news this month!",
-      ...>   lists: [1, 2],
-      ...>   body: "<p>Hello!</p>"
-      ...> })
-      {:ok, %Campaign{}}
   """
-  @spec create(map(), Config.t() | nil) :: {:ok, Campaign.t()} | {:error, Error.t()}
-  def create(attrs, config \\ nil) do
+  @spec create(server(), map()) :: {:ok, Campaign.t()} | {:error, Error.t()}
+  def create(server, attrs) do
     with {:ok, payload} <- build_create_payload(attrs) do
-      case Client.post("/api/campaigns", config, json: payload) do
+      case Server.request(server, :post, "/api/campaigns", json: payload) do
         {:ok, %{"data" => data}} -> {:ok, Campaign.from_api(data)}
         error -> error
       end
@@ -144,87 +88,37 @@ defmodule Listmonk.Campaigns do
   end
 
   @doc """
-  Creates a new campaign. Raises on error.
-  """
-  @spec create!(map(), Config.t() | nil) :: Campaign.t()
-  def create!(attrs, config \\ nil) do
-    case create(attrs, config) do
-      {:ok, campaign} -> campaign
-      {:error, error} -> raise error
-    end
-  end
-
-  @doc """
   Updates a campaign.
-
-  ## Attributes
-
-  Same as create/2 attributes.
-
-  ## Examples
-
-      iex> campaign = Listmonk.Campaigns.get_by_id!(15)
-      iex> Listmonk.Campaigns.update(campaign, %{name: "Updated Name"})
-      {:ok, %Campaign{}}
   """
-  @spec update(Campaign.t(), map(), Config.t() | nil) :: {:ok, Campaign.t()} | {:error, Error.t()}
-  def update(%Campaign{id: id} = campaign, attrs, config \\ nil) do
+  @spec update(server(), Campaign.t(), map()) :: {:ok, Campaign.t()} | {:error, Error.t()}
+  def update(server, %Campaign{id: id} = campaign, attrs) do
     updated_campaign = merge_campaign_attrs(campaign, attrs)
     payload = Campaign.to_api(updated_campaign, list_ids: get_list_ids(updated_campaign, attrs))
-
-    # Handle send_at being in the past
     payload = normalize_send_at(payload)
 
-    case Client.put("/api/campaigns/#{id}", config, json: payload) do
-      {:ok, _response} -> get_by_id(id, config)
+    case Server.request(server, :put, "/api/campaigns/#{id}", json: payload) do
+      {:ok, _response} -> get_by_id(server, id)
       error -> error
     end
   end
 
   @doc """
-  Updates a campaign. Raises on error.
-  """
-  @spec update!(Campaign.t(), map(), Config.t() | nil) :: Campaign.t()
-  def update!(campaign, attrs, config \\ nil) do
-    case update(campaign, attrs, config) do
-      {:ok, updated} -> updated
-      {:error, error} -> raise error
-    end
-  end
-
-  @doc """
   Deletes a campaign by ID.
-
-  ## Examples
-
-      iex> Listmonk.Campaigns.delete(15)
-      {:ok, true}
   """
-  @spec delete(integer(), Config.t() | nil) :: {:ok, boolean()} | {:error, Error.t()}
-  def delete(id, config \\ nil) do
-    case get_by_id(id, config) do
+  @spec delete(server(), integer()) :: {:ok, boolean()} | {:error, Error.t()}
+  def delete(server, id) do
+    case get_by_id(server, id) do
       {:ok, nil} ->
         {:ok, false}
 
       {:ok, _campaign} ->
-        case Client.delete("/api/campaigns/#{id}", config) do
+        case Server.request(server, :delete, "/api/campaigns/#{id}") do
           {:ok, %{"data" => result}} -> {:ok, result == true}
           error -> error
         end
 
       error ->
         error
-    end
-  end
-
-  @doc """
-  Deletes a campaign. Raises on error.
-  """
-  @spec delete!(integer(), Config.t() | nil) :: boolean()
-  def delete!(id, config \\ nil) do
-    case delete(id, config) do
-      {:ok, result} -> result
-      {:error, error} -> raise error
     end
   end
 

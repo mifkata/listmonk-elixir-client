@@ -1,5 +1,42 @@
 # Changelog
 
+## [0.3.0] - Unreleased
+
+### Added
+
+- **Process-based client architecture** - The client now uses GenServer processes for managing connections
+- `Listmonk.new/1` and `Listmonk.new/2` functions to start client processes
+- Named process support via aliases (e.g., `Listmonk.new(config, :my_listmonk)`)
+- `Listmonk.get_config/1` to retrieve current configuration from a client
+- `Listmonk.set_config/2` to update configuration at runtime
+- `Listmonk.stop/1` to stop a client process
+- `Listmonk.Server` module implementing the GenServer
+
+### Changed
+
+- **Breaking:** All API functions now require a server reference (pid or atom) as the first argument instead of an optional config as the last argument
+- Example migration:
+  ```elixir
+  # Before (0.2.x)
+  {:ok, lists} = Listmonk.get_lists()
+  {:ok, lists} = Listmonk.get_lists(config)
+
+  # After (0.3.0)
+  {:ok, pid} = Listmonk.new(config)
+  {:ok, lists} = Listmonk.get_lists(pid)
+
+  # Or with a named process
+  {:ok, _pid} = Listmonk.new(config, :my_listmonk)
+  {:ok, lists} = Listmonk.get_lists(:my_listmonk)
+  ```
+- Removed bang (`!`) variants from submodules - use main `Listmonk` module instead
+- Configuration is now validated and resolved at process start time
+
+### Removed
+
+- Direct config passing to API functions (use `Listmonk.new/1` instead)
+- `Listmonk.Client` module's public API (now internal to Server)
+
 ## [0.2.0] - 2025-11-28
 
 ### Added
@@ -35,5 +72,6 @@
 - Credo linter integration
 - ExDoc documentation
 
-[Unreleased]: https://github.com/mifkata/listmonk-elixir-client/compare/v0.1.0...HEAD
+[0.3.0]: https://github.com/mifkata/listmonk-elixir-client/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/mifkata/listmonk-elixir-client/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/mifkata/listmonk-elixir-client/releases/tag/v0.1.0

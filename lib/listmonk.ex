@@ -2,46 +2,51 @@ defmodule Listmonk do
   @moduledoc """
   Elixir client for the Listmonk email platform API.
 
-  This module provides a comprehensive interface to interact with Listmonk's API,
+  This module provides a process-based interface to interact with Listmonk's API,
   including subscriber management, campaigns, templates, lists, and transactional emails.
 
-  Based on the Python Listmonk client by Michael Kennedy (https://github.com/mikeckennedy/listmonk),
-  adapted to idiomatic Elixir patterns and conventions.
+  ## Getting Started
+
+  Start a client process and use it for API calls:
+
+      # Start with an alias (named process)
+      {:ok, _pid} = Listmonk.new(config, :my_listmonk)
+      {:ok, lists} = Listmonk.get_lists(:my_listmonk)
+
+      # Or start without a name and use the pid
+      {:ok, pid} = Listmonk.new(config)
+      {:ok, lists} = Listmonk.get_lists(pid)
 
   ## Configuration
 
-  You can configure the client either via environment variables or at runtime:
+  Create a config struct or use a keyword list:
 
-  ### Environment Variables
+      # Using a struct
+      config = %Listmonk.Config{
+        url: "https://listmonk.example.com",
+        username: "admin",
+        password: "your_password_or_api_key"
+      }
+
+      # Using keyword list
+      config = [
+        url: "https://listmonk.example.com",
+        username: "admin",
+        password: "your_password_or_api_key"
+      ]
+
+  Environment variables are also supported as fallbacks:
 
       LISTMONK_URL=https://listmonk.example.com
       LISTMONK_USERNAME=your_username
       LISTMONK_PASSWORD=your_password_or_api_key
-
-  ### Runtime Configuration
-
-      config = %Listmonk.Config{
-        url: "https://listmonk.example.com",
-        username: "your_username",
-        password: "your_password_or_api_key"
-      }
-
-  Runtime configuration takes precedence over environment variables.
 
   ## Usage
 
   See `USAGE.md` for detailed examples.
   """
 
-  alias Listmonk.{
-    Config,
-    Error,
-    Subscribers,
-    Lists,
-    Campaigns,
-    Templates,
-    Transactional
-  }
+  alias Listmonk.{Config, Error, Server}
 
   alias Listmonk.Models.{
     Subscriber,
@@ -50,271 +55,624 @@ defmodule Listmonk do
     Template
   }
 
+  @type server :: pid() | atom()
+
+  # Process Management
+
+  @doc """
+  Starts a new Listmonk client process.
+
+  Returns `{:ok, pid}` on success. If a name is provided, the process is registered
+  under that name and can be referenced by the atom.
+
+  ## Examples
+
+      # Start with config struct
+      config = %Listmonk.Config{url: "https://...", username: "admin", password: "secret"}
+      {:ok, pid} = Listmonk.new(config)
+
+      # Start with keyword config
+      {:ok, pid} = Listmonk.new(url: "https://...", username: "admin", password: "secret")
+
+      # Start with a name (alias)
+      {:ok, pid} = Listmonk.new(config, :my_listmonk)
+      # Now use :my_listmonk instead of pid
+      {:ok, lists} = Listmonk.get_lists(:my_listmonk)
+  """
+  @spec new(Config.t() | keyword()) :: {:ok, pid()} | {:error, Error.t()}
+  def new(config) do
+    Server.start_link(config: config)
+  end
+
+  @spec new(Config.t() | keyword(), atom()) :: {:ok, pid()} | {:error, Error.t()}
+  def new(config, name) when is_atom(name) do
+    Server.start_link(config: config, name: name)
+  end
+
+  @doc """
+  Gets the current configuration from a client process.
+
+  ## Examples
+
+      config = Listmonk.get_config(:my_listmonk)
+      config = Listmonk.get_config(pid)
+  """
+  @spec get_config(server()) :: Config.t()
+  defdelegate get_config(server), to: Server
+
+  @doc """
+  Updates the configuration of a client process.
+
+  ## Examples
+
+      new_config = %Listmonk.Config{url: "https://new.example.com", ...}
+      :ok = Listmonk.set_config(:my_listmonk, new_config)
+  """
+  @spec set_config(server(), Config.t()) :: :ok | {:error, Error.t()}
+  defdelegate set_config(server, config), to: Server
+
+  @doc """
+  Stops a client process.
+
+  ## Examples
+
+      :ok = Listmonk.stop(:my_listmonk)
+  """
+  @spec stop(server()) :: :ok
+  defdelegate stop(server), to: Server
+
+  # Health Check
+
   @doc """
   Checks the health of the Listmonk instance.
 
-  Returns `{:ok, true}` if the instance is healthy, or an error tuple otherwise.
+  ## Examples
+
+      {:ok, true} = Listmonk.healthy?(:my_listmonk)
   """
-  @spec healthy?(Config.t() | nil) :: {:ok, boolean()} | {:error, term()}
-  defdelegate healthy?(config \\ nil), to: Listmonk.Client
+  @spec healthy?(server()) :: {:ok, boolean()} | {:error, Error.t()}
+  def healthy?(server) do
+    case Server.request(server, :get, "/api/health") do
+      {:ok, %{"data" => result}} -> {:ok, result == true}
+      {:ok, _} -> {:ok, false}
+      error -> error
+    end
+  end
 
   @doc """
   Checks the health of the Listmonk instance. Raises on error.
   """
-  @spec healthy!(Config.t() | nil) :: boolean()
-  defdelegate healthy!(config \\ nil), to: Listmonk.Client
+  @spec healthy!(server()) :: boolean()
+  def healthy!(server) do
+    case healthy?(server) do
+      {:ok, result} -> result
+      {:error, error} -> raise error
+    end
+  end
 
   # Subscriber functions
-  @doc "See `Listmonk.Subscribers.get/2`"
-  @spec get_subscribers(keyword(), Config.t() | nil) ::
-          {:ok, list(Subscriber.t())} | {:error, Error.t()}
-  defdelegate get_subscribers(opts \\ [], config \\ nil), to: Subscribers, as: :get
 
-  @doc "See `Listmonk.Subscribers.get!/2`"
-  @spec get_subscribers!(keyword(), Config.t() | nil) :: list(Subscriber.t())
-  defdelegate get_subscribers!(opts \\ [], config \\ nil), to: Subscribers, as: :get!
+  @doc """
+  Retrieves subscribers with optional filters.
 
-  @doc "See `Listmonk.Subscribers.get_by_email/2`"
-  @spec get_subscriber_by_email(String.t(), Config.t() | nil) ::
+  ## Options
+
+  - `:query` - SQL query string for filtering
+  - `:list_id` - Filter by list ID
+  - `:page` - Page number (default: 1)
+  - `:per_page` - Results per page (default: 100)
+
+  ## Examples
+
+      {:ok, subscribers} = Listmonk.get_subscribers(:my_listmonk)
+      {:ok, subscribers} = Listmonk.get_subscribers(:my_listmonk, query: "subscribers.email LIKE '%@example.com'")
+  """
+  @spec get_subscribers(server(), keyword()) :: {:ok, list(Subscriber.t())} | {:error, Error.t()}
+  def get_subscribers(server, opts \\ []) do
+    Listmonk.Subscribers.get(server, opts)
+  end
+
+  @doc "Retrieves subscribers. Raises on error."
+  @spec get_subscribers!(server(), keyword()) :: list(Subscriber.t())
+  def get_subscribers!(server, opts \\ []) do
+    case get_subscribers(server, opts) do
+      {:ok, result} -> result
+      {:error, error} -> raise error
+    end
+  end
+
+  @doc "Retrieves a subscriber by email address."
+  @spec get_subscriber_by_email(server(), String.t()) ::
           {:ok, Subscriber.t() | nil} | {:error, Error.t()}
-  defdelegate get_subscriber_by_email(email, config \\ nil), to: Subscribers, as: :get_by_email
+  def get_subscriber_by_email(server, email) do
+    Listmonk.Subscribers.get_by_email(server, email)
+  end
 
-  @doc "See `Listmonk.Subscribers.get_by_email!/2`"
-  @spec get_subscriber_by_email!(String.t(), Config.t() | nil) :: Subscriber.t() | nil
-  defdelegate get_subscriber_by_email!(email, config \\ nil), to: Subscribers, as: :get_by_email!
+  @doc "Retrieves a subscriber by email. Raises on error."
+  @spec get_subscriber_by_email!(server(), String.t()) :: Subscriber.t() | nil
+  def get_subscriber_by_email!(server, email) do
+    case get_subscriber_by_email(server, email) do
+      {:ok, result} -> result
+      {:error, error} -> raise error
+    end
+  end
 
-  @doc "See `Listmonk.Subscribers.get_by_id/2`"
-  @spec get_subscriber_by_id(integer(), Config.t() | nil) ::
+  @doc "Retrieves a subscriber by ID."
+  @spec get_subscriber_by_id(server(), integer()) ::
           {:ok, Subscriber.t() | nil} | {:error, Error.t()}
-  defdelegate get_subscriber_by_id(id, config \\ nil), to: Subscribers, as: :get_by_id
+  def get_subscriber_by_id(server, id) do
+    Listmonk.Subscribers.get_by_id(server, id)
+  end
 
-  @doc "See `Listmonk.Subscribers.get_by_id!/2`"
-  @spec get_subscriber_by_id!(integer(), Config.t() | nil) :: Subscriber.t() | nil
-  defdelegate get_subscriber_by_id!(id, config \\ nil), to: Subscribers, as: :get_by_id!
+  @doc "Retrieves a subscriber by ID. Raises on error."
+  @spec get_subscriber_by_id!(server(), integer()) :: Subscriber.t() | nil
+  def get_subscriber_by_id!(server, id) do
+    case get_subscriber_by_id(server, id) do
+      {:ok, result} -> result
+      {:error, error} -> raise error
+    end
+  end
 
-  @doc "See `Listmonk.Subscribers.get_by_uuid/2`"
-  @spec get_subscriber_by_uuid(String.t(), Config.t() | nil) ::
+  @doc "Retrieves a subscriber by UUID."
+  @spec get_subscriber_by_uuid(server(), String.t()) ::
           {:ok, Subscriber.t() | nil} | {:error, Error.t()}
-  defdelegate get_subscriber_by_uuid(uuid, config \\ nil), to: Subscribers, as: :get_by_uuid
+  def get_subscriber_by_uuid(server, uuid) do
+    Listmonk.Subscribers.get_by_uuid(server, uuid)
+  end
 
-  @doc "See `Listmonk.Subscribers.get_by_uuid!/2`"
-  @spec get_subscriber_by_uuid!(String.t(), Config.t() | nil) :: Subscriber.t() | nil
-  defdelegate get_subscriber_by_uuid!(uuid, config \\ nil), to: Subscribers, as: :get_by_uuid!
+  @doc "Retrieves a subscriber by UUID. Raises on error."
+  @spec get_subscriber_by_uuid!(server(), String.t()) :: Subscriber.t() | nil
+  def get_subscriber_by_uuid!(server, uuid) do
+    case get_subscriber_by_uuid(server, uuid) do
+      {:ok, result} -> result
+      {:error, error} -> raise error
+    end
+  end
 
-  @doc "See `Listmonk.Subscribers.create/2`"
-  @spec create_subscriber(map(), Config.t() | nil) :: {:ok, Subscriber.t()} | {:error, Error.t()}
-  defdelegate create_subscriber(attrs, config \\ nil), to: Subscribers, as: :create
+  @doc """
+  Creates a new subscriber.
 
-  @doc "See `Listmonk.Subscribers.create!/2`"
-  @spec create_subscriber!(map(), Config.t() | nil) :: Subscriber.t()
-  defdelegate create_subscriber!(attrs, config \\ nil), to: Subscribers, as: :create!
+  ## Attributes
 
-  @doc "See `Listmonk.Subscribers.update/3`"
-  @spec update_subscriber(Subscriber.t(), map(), Config.t() | nil) ::
+  - `:email` (required) - Email address
+  - `:name` (required) - Full name
+  - `:lists` (required) - List of list IDs to subscribe to
+  - `:status` - Status (:enabled, :disabled, :blocklisted)
+  - `:preconfirm` - Skip confirmation for double opt-in lists
+  - `:attribs` - Map of custom attributes
+  """
+  @spec create_subscriber(server(), map()) :: {:ok, Subscriber.t()} | {:error, Error.t()}
+  def create_subscriber(server, attrs) do
+    Listmonk.Subscribers.create(server, attrs)
+  end
+
+  @doc "Creates a new subscriber. Raises on error."
+  @spec create_subscriber!(server(), map()) :: Subscriber.t()
+  def create_subscriber!(server, attrs) do
+    case create_subscriber(server, attrs) do
+      {:ok, result} -> result
+      {:error, error} -> raise error
+    end
+  end
+
+  @doc "Updates a subscriber."
+  @spec update_subscriber(server(), Subscriber.t(), map()) ::
           {:ok, Subscriber.t()} | {:error, Error.t()}
-  defdelegate update_subscriber(subscriber, attrs, config \\ nil), to: Subscribers, as: :update
+  def update_subscriber(server, subscriber, attrs) do
+    Listmonk.Subscribers.update(server, subscriber, attrs)
+  end
 
-  @doc "See `Listmonk.Subscribers.update!/3`"
-  @spec update_subscriber!(Subscriber.t(), map(), Config.t() | nil) :: Subscriber.t()
-  defdelegate update_subscriber!(subscriber, attrs, config \\ nil), to: Subscribers, as: :update!
+  @doc "Updates a subscriber. Raises on error."
+  @spec update_subscriber!(server(), Subscriber.t(), map()) :: Subscriber.t()
+  def update_subscriber!(server, subscriber, attrs) do
+    case update_subscriber(server, subscriber, attrs) do
+      {:ok, result} -> result
+      {:error, error} -> raise error
+    end
+  end
 
-  @doc "See `Listmonk.Subscribers.delete/2`"
-  @spec delete_subscriber(String.t() | integer(), Config.t() | nil) ::
+  @doc "Deletes a subscriber by email or ID."
+  @spec delete_subscriber(server(), String.t() | integer()) ::
           {:ok, boolean()} | {:error, Error.t()}
-  defdelegate delete_subscriber(identifier, config \\ nil), to: Subscribers, as: :delete
+  def delete_subscriber(server, identifier) do
+    Listmonk.Subscribers.delete(server, identifier)
+  end
 
-  @doc "See `Listmonk.Subscribers.delete!/2`"
-  @spec delete_subscriber!(String.t() | integer(), Config.t() | nil) :: boolean()
-  defdelegate delete_subscriber!(identifier, config \\ nil), to: Subscribers, as: :delete!
+  @doc "Deletes a subscriber. Raises on error."
+  @spec delete_subscriber!(server(), String.t() | integer()) :: boolean()
+  def delete_subscriber!(server, identifier) do
+    case delete_subscriber(server, identifier) do
+      {:ok, result} -> result
+      {:error, error} -> raise error
+    end
+  end
 
-  @doc "See `Listmonk.Subscribers.enable/2`"
-  @spec enable_subscriber(Subscriber.t(), Config.t() | nil) ::
+  @doc "Enables a subscriber."
+  @spec enable_subscriber(server(), Subscriber.t()) ::
           {:ok, Subscriber.t()} | {:error, Error.t()}
-  defdelegate enable_subscriber(subscriber, config \\ nil), to: Subscribers, as: :enable
+  def enable_subscriber(server, subscriber) do
+    Listmonk.Subscribers.enable(server, subscriber)
+  end
 
-  @doc "See `Listmonk.Subscribers.enable!/2`"
-  @spec enable_subscriber!(Subscriber.t(), Config.t() | nil) :: Subscriber.t()
-  defdelegate enable_subscriber!(subscriber, config \\ nil), to: Subscribers, as: :enable!
+  @doc "Enables a subscriber. Raises on error."
+  @spec enable_subscriber!(server(), Subscriber.t()) :: Subscriber.t()
+  def enable_subscriber!(server, subscriber) do
+    case enable_subscriber(server, subscriber) do
+      {:ok, result} -> result
+      {:error, error} -> raise error
+    end
+  end
 
-  @doc "See `Listmonk.Subscribers.disable/2`"
-  @spec disable_subscriber(Subscriber.t(), Config.t() | nil) ::
+  @doc "Disables a subscriber."
+  @spec disable_subscriber(server(), Subscriber.t()) ::
           {:ok, Subscriber.t()} | {:error, Error.t()}
-  defdelegate disable_subscriber(subscriber, config \\ nil), to: Subscribers, as: :disable
+  def disable_subscriber(server, subscriber) do
+    Listmonk.Subscribers.disable(server, subscriber)
+  end
 
-  @doc "See `Listmonk.Subscribers.disable!/2`"
-  @spec disable_subscriber!(Subscriber.t(), Config.t() | nil) :: Subscriber.t()
-  defdelegate disable_subscriber!(subscriber, config \\ nil), to: Subscribers, as: :disable!
+  @doc "Disables a subscriber. Raises on error."
+  @spec disable_subscriber!(server(), Subscriber.t()) :: Subscriber.t()
+  def disable_subscriber!(server, subscriber) do
+    case disable_subscriber(server, subscriber) do
+      {:ok, result} -> result
+      {:error, error} -> raise error
+    end
+  end
 
-  @doc "See `Listmonk.Subscribers.block/2`"
-  @spec block_subscriber(Subscriber.t(), Config.t() | nil) ::
+  @doc "Blocks (blocklists) a subscriber."
+  @spec block_subscriber(server(), Subscriber.t()) ::
           {:ok, Subscriber.t()} | {:error, Error.t()}
-  defdelegate block_subscriber(subscriber, config \\ nil), to: Subscribers, as: :block
+  def block_subscriber(server, subscriber) do
+    Listmonk.Subscribers.block(server, subscriber)
+  end
 
-  @doc "See `Listmonk.Subscribers.block!/2`"
-  @spec block_subscriber!(Subscriber.t(), Config.t() | nil) :: Subscriber.t()
-  defdelegate block_subscriber!(subscriber, config \\ nil), to: Subscribers, as: :block!
+  @doc "Blocks a subscriber. Raises on error."
+  @spec block_subscriber!(server(), Subscriber.t()) :: Subscriber.t()
+  def block_subscriber!(server, subscriber) do
+    case block_subscriber(server, subscriber) do
+      {:ok, result} -> result
+      {:error, error} -> raise error
+    end
+  end
 
-  @doc "See `Listmonk.Subscribers.confirm_optin/3`"
-  @spec confirm_optin(String.t(), String.t(), Config.t() | nil) ::
+  @doc "Confirms opt-in for a subscriber to a list."
+  @spec confirm_optin(server(), String.t(), String.t()) ::
           {:ok, boolean()} | {:error, Error.t()}
-  defdelegate confirm_optin(subscriber_uuid, list_uuid, config \\ nil), to: Subscribers
+  def confirm_optin(server, subscriber_uuid, list_uuid) do
+    Listmonk.Subscribers.confirm_optin(server, subscriber_uuid, list_uuid)
+  end
 
-  @doc "See `Listmonk.Subscribers.confirm_optin!/3`"
-  @spec confirm_optin!(String.t(), String.t(), Config.t() | nil) :: boolean()
-  defdelegate confirm_optin!(subscriber_uuid, list_uuid, config \\ nil), to: Subscribers
+  @doc "Confirms opt-in. Raises on error."
+  @spec confirm_optin!(server(), String.t(), String.t()) :: boolean()
+  def confirm_optin!(server, subscriber_uuid, list_uuid) do
+    case confirm_optin(server, subscriber_uuid, list_uuid) do
+      {:ok, result} -> result
+      {:error, error} -> raise error
+    end
+  end
 
   # List functions
-  @doc "See `Listmonk.Lists.get/1`"
-  @spec get_lists(Config.t() | nil) :: {:ok, list(MailingList.t())} | {:error, Error.t()}
-  defdelegate get_lists(config \\ nil), to: Lists, as: :get
 
-  @doc "See `Listmonk.Lists.get!/1`"
-  @spec get_lists!(Config.t() | nil) :: list(MailingList.t())
-  defdelegate get_lists!(config \\ nil), to: Lists, as: :get!
+  @doc "Retrieves all mailing lists."
+  @spec get_lists(server()) :: {:ok, list(MailingList.t())} | {:error, Error.t()}
+  def get_lists(server) do
+    Listmonk.Lists.get(server)
+  end
 
-  @doc "See `Listmonk.Lists.get_by_id/2`"
-  @spec get_list_by_id(integer(), Config.t() | nil) ::
+  @doc "Retrieves all mailing lists. Raises on error."
+  @spec get_lists!(server()) :: list(MailingList.t())
+  def get_lists!(server) do
+    case get_lists(server) do
+      {:ok, result} -> result
+      {:error, error} -> raise error
+    end
+  end
+
+  @doc "Retrieves a mailing list by ID."
+  @spec get_list_by_id(server(), integer()) ::
           {:ok, MailingList.t() | nil} | {:error, Error.t()}
-  defdelegate get_list_by_id(id, config \\ nil), to: Lists, as: :get_by_id
+  def get_list_by_id(server, id) do
+    Listmonk.Lists.get_by_id(server, id)
+  end
 
-  @doc "See `Listmonk.Lists.get_by_id!/2`"
-  @spec get_list_by_id!(integer(), Config.t() | nil) :: MailingList.t() | nil
-  defdelegate get_list_by_id!(id, config \\ nil), to: Lists, as: :get_by_id!
+  @doc "Retrieves a mailing list by ID. Raises on error."
+  @spec get_list_by_id!(server(), integer()) :: MailingList.t() | nil
+  def get_list_by_id!(server, id) do
+    case get_list_by_id(server, id) do
+      {:ok, result} -> result
+      {:error, error} -> raise error
+    end
+  end
 
-  @doc "See `Listmonk.Lists.create/2`"
-  @spec create_list(map(), Config.t() | nil) :: {:ok, MailingList.t()} | {:error, Error.t()}
-  defdelegate create_list(attrs, config \\ nil), to: Lists, as: :create
+  @doc """
+  Creates a new mailing list.
 
-  @doc "See `Listmonk.Lists.create!/2`"
-  @spec create_list!(map(), Config.t() | nil) :: MailingList.t()
-  defdelegate create_list!(attrs, config \\ nil), to: Lists, as: :create!
+  ## Attributes
 
-  @doc "See `Listmonk.Lists.delete/2`"
-  @spec delete_list(integer(), Config.t() | nil) :: {:ok, boolean()} | {:error, Error.t()}
-  defdelegate delete_list(id, config \\ nil), to: Lists, as: :delete
+  - `:name` (required) - Name of the list
+  - `:type` - List type (:public or :private)
+  - `:optin` - Opt-in type (:single or :double)
+  - `:tags` - List of tags
+  - `:description` - Description of the list
+  """
+  @spec create_list(server(), map()) :: {:ok, MailingList.t()} | {:error, Error.t()}
+  def create_list(server, attrs) do
+    Listmonk.Lists.create(server, attrs)
+  end
 
-  @doc "See `Listmonk.Lists.delete!/2`"
-  @spec delete_list!(integer(), Config.t() | nil) :: boolean()
-  defdelegate delete_list!(id, config \\ nil), to: Lists, as: :delete!
+  @doc "Creates a new mailing list. Raises on error."
+  @spec create_list!(server(), map()) :: MailingList.t()
+  def create_list!(server, attrs) do
+    case create_list(server, attrs) do
+      {:ok, result} -> result
+      {:error, error} -> raise error
+    end
+  end
+
+  @doc "Deletes a mailing list by ID."
+  @spec delete_list(server(), integer()) :: {:ok, boolean()} | {:error, Error.t()}
+  def delete_list(server, id) do
+    Listmonk.Lists.delete(server, id)
+  end
+
+  @doc "Deletes a mailing list. Raises on error."
+  @spec delete_list!(server(), integer()) :: boolean()
+  def delete_list!(server, id) do
+    case delete_list(server, id) do
+      {:ok, result} -> result
+      {:error, error} -> raise error
+    end
+  end
 
   # Campaign functions
-  @doc "See `Listmonk.Campaigns.get/1`"
-  @spec get_campaigns(Config.t() | nil) :: {:ok, list(Campaign.t())} | {:error, Error.t()}
-  defdelegate get_campaigns(config \\ nil), to: Campaigns, as: :get
 
-  @doc "See `Listmonk.Campaigns.get!/1`"
-  @spec get_campaigns!(Config.t() | nil) :: list(Campaign.t())
-  defdelegate get_campaigns!(config \\ nil), to: Campaigns, as: :get!
+  @doc "Retrieves all campaigns."
+  @spec get_campaigns(server()) :: {:ok, list(Campaign.t())} | {:error, Error.t()}
+  def get_campaigns(server) do
+    Listmonk.Campaigns.get(server)
+  end
 
-  @doc "See `Listmonk.Campaigns.get_by_id/2`"
-  @spec get_campaign_by_id(integer(), Config.t() | nil) ::
+  @doc "Retrieves all campaigns. Raises on error."
+  @spec get_campaigns!(server()) :: list(Campaign.t())
+  def get_campaigns!(server) do
+    case get_campaigns(server) do
+      {:ok, result} -> result
+      {:error, error} -> raise error
+    end
+  end
+
+  @doc "Retrieves a campaign by ID."
+  @spec get_campaign_by_id(server(), integer()) ::
           {:ok, Campaign.t() | nil} | {:error, Error.t()}
-  defdelegate get_campaign_by_id(id, config \\ nil), to: Campaigns, as: :get_by_id
+  def get_campaign_by_id(server, id) do
+    Listmonk.Campaigns.get_by_id(server, id)
+  end
 
-  @doc "See `Listmonk.Campaigns.get_by_id!/2`"
-  @spec get_campaign_by_id!(integer(), Config.t() | nil) :: Campaign.t() | nil
-  defdelegate get_campaign_by_id!(id, config \\ nil), to: Campaigns, as: :get_by_id!
+  @doc "Retrieves a campaign by ID. Raises on error."
+  @spec get_campaign_by_id!(server(), integer()) :: Campaign.t() | nil
+  def get_campaign_by_id!(server, id) do
+    case get_campaign_by_id(server, id) do
+      {:ok, result} -> result
+      {:error, error} -> raise error
+    end
+  end
 
-  @doc "See `Listmonk.Campaigns.preview/2`"
-  @spec preview_campaign(integer(), Config.t() | nil) :: {:ok, String.t()} | {:error, Error.t()}
-  defdelegate preview_campaign(id, config \\ nil), to: Campaigns, as: :preview
+  @doc "Retrieves a campaign preview by ID."
+  @spec preview_campaign(server(), integer()) :: {:ok, String.t()} | {:error, Error.t()}
+  def preview_campaign(server, id) do
+    Listmonk.Campaigns.preview(server, id)
+  end
 
-  @doc "See `Listmonk.Campaigns.preview!/2`"
-  @spec preview_campaign!(integer(), Config.t() | nil) :: String.t()
-  defdelegate preview_campaign!(id, config \\ nil), to: Campaigns, as: :preview!
+  @doc "Retrieves a campaign preview. Raises on error."
+  @spec preview_campaign!(server(), integer()) :: String.t()
+  def preview_campaign!(server, id) do
+    case preview_campaign(server, id) do
+      {:ok, result} -> result
+      {:error, error} -> raise error
+    end
+  end
 
-  @doc "See `Listmonk.Campaigns.create/2`"
-  @spec create_campaign(map(), Config.t() | nil) :: {:ok, Campaign.t()} | {:error, Error.t()}
-  defdelegate create_campaign(attrs, config \\ nil), to: Campaigns, as: :create
+  @doc """
+  Creates a new campaign.
 
-  @doc "See `Listmonk.Campaigns.create!/2`"
-  @spec create_campaign!(map(), Config.t() | nil) :: Campaign.t()
-  defdelegate create_campaign!(attrs, config \\ nil), to: Campaigns, as: :create!
+  ## Attributes
 
-  @doc "See `Listmonk.Campaigns.update/3`"
-  @spec update_campaign(Campaign.t(), map(), Config.t() | nil) ::
+  - `:name` (required) - Campaign name
+  - `:subject` (required) - Email subject
+  - `:lists` - List IDs to send to
+  - `:from_email` - From email address
+  - `:type` - Campaign type (:regular or :optin)
+  - `:content_type` - Content type (:richtext, :html, :markdown, :plain)
+  - `:body` - Email body content
+  """
+  @spec create_campaign(server(), map()) :: {:ok, Campaign.t()} | {:error, Error.t()}
+  def create_campaign(server, attrs) do
+    Listmonk.Campaigns.create(server, attrs)
+  end
+
+  @doc "Creates a new campaign. Raises on error."
+  @spec create_campaign!(server(), map()) :: Campaign.t()
+  def create_campaign!(server, attrs) do
+    case create_campaign(server, attrs) do
+      {:ok, result} -> result
+      {:error, error} -> raise error
+    end
+  end
+
+  @doc "Updates a campaign."
+  @spec update_campaign(server(), Campaign.t(), map()) ::
           {:ok, Campaign.t()} | {:error, Error.t()}
-  defdelegate update_campaign(campaign, attrs, config \\ nil), to: Campaigns, as: :update
+  def update_campaign(server, campaign, attrs) do
+    Listmonk.Campaigns.update(server, campaign, attrs)
+  end
 
-  @doc "See `Listmonk.Campaigns.update!/3`"
-  @spec update_campaign!(Campaign.t(), map(), Config.t() | nil) :: Campaign.t()
-  defdelegate update_campaign!(campaign, attrs, config \\ nil), to: Campaigns, as: :update!
+  @doc "Updates a campaign. Raises on error."
+  @spec update_campaign!(server(), Campaign.t(), map()) :: Campaign.t()
+  def update_campaign!(server, campaign, attrs) do
+    case update_campaign(server, campaign, attrs) do
+      {:ok, result} -> result
+      {:error, error} -> raise error
+    end
+  end
 
-  @doc "See `Listmonk.Campaigns.delete/2`"
-  @spec delete_campaign(integer(), Config.t() | nil) :: {:ok, boolean()} | {:error, Error.t()}
-  defdelegate delete_campaign(id, config \\ nil), to: Campaigns, as: :delete
+  @doc "Deletes a campaign by ID."
+  @spec delete_campaign(server(), integer()) :: {:ok, boolean()} | {:error, Error.t()}
+  def delete_campaign(server, id) do
+    Listmonk.Campaigns.delete(server, id)
+  end
 
-  @doc "See `Listmonk.Campaigns.delete!/2`"
-  @spec delete_campaign!(integer(), Config.t() | nil) :: boolean()
-  defdelegate delete_campaign!(id, config \\ nil), to: Campaigns, as: :delete!
+  @doc "Deletes a campaign. Raises on error."
+  @spec delete_campaign!(server(), integer()) :: boolean()
+  def delete_campaign!(server, id) do
+    case delete_campaign(server, id) do
+      {:ok, result} -> result
+      {:error, error} -> raise error
+    end
+  end
 
   # Template functions
-  @doc "See `Listmonk.Templates.get/1`"
-  @spec get_templates(Config.t() | nil) :: {:ok, list(Template.t())} | {:error, Error.t()}
-  defdelegate get_templates(config \\ nil), to: Templates, as: :get
 
-  @doc "See `Listmonk.Templates.get!/1`"
-  @spec get_templates!(Config.t() | nil) :: list(Template.t())
-  defdelegate get_templates!(config \\ nil), to: Templates, as: :get!
+  @doc "Retrieves all templates."
+  @spec get_templates(server()) :: {:ok, list(Template.t())} | {:error, Error.t()}
+  def get_templates(server) do
+    Listmonk.Templates.get(server)
+  end
 
-  @doc "See `Listmonk.Templates.get_by_id/2`"
-  @spec get_template_by_id(integer(), Config.t() | nil) ::
+  @doc "Retrieves all templates. Raises on error."
+  @spec get_templates!(server()) :: list(Template.t())
+  def get_templates!(server) do
+    case get_templates(server) do
+      {:ok, result} -> result
+      {:error, error} -> raise error
+    end
+  end
+
+  @doc "Retrieves a template by ID."
+  @spec get_template_by_id(server(), integer()) ::
           {:ok, Template.t() | nil} | {:error, Error.t()}
-  defdelegate get_template_by_id(id, config \\ nil), to: Templates, as: :get_by_id
+  def get_template_by_id(server, id) do
+    Listmonk.Templates.get_by_id(server, id)
+  end
 
-  @doc "See `Listmonk.Templates.get_by_id!/2`"
-  @spec get_template_by_id!(integer(), Config.t() | nil) :: Template.t() | nil
-  defdelegate get_template_by_id!(id, config \\ nil), to: Templates, as: :get_by_id!
+  @doc "Retrieves a template by ID. Raises on error."
+  @spec get_template_by_id!(server(), integer()) :: Template.t() | nil
+  def get_template_by_id!(server, id) do
+    case get_template_by_id(server, id) do
+      {:ok, result} -> result
+      {:error, error} -> raise error
+    end
+  end
 
-  @doc "See `Listmonk.Templates.preview/2`"
-  @spec preview_template(integer(), Config.t() | nil) :: {:ok, String.t()} | {:error, Error.t()}
-  defdelegate preview_template(id, config \\ nil), to: Templates, as: :preview
+  @doc "Retrieves a template preview by ID."
+  @spec preview_template(server(), integer()) :: {:ok, String.t()} | {:error, Error.t()}
+  def preview_template(server, id) do
+    Listmonk.Templates.preview(server, id)
+  end
 
-  @doc "See `Listmonk.Templates.preview!/2`"
-  @spec preview_template!(integer(), Config.t() | nil) :: String.t()
-  defdelegate preview_template!(id, config \\ nil), to: Templates, as: :preview!
+  @doc "Retrieves a template preview. Raises on error."
+  @spec preview_template!(server(), integer()) :: String.t()
+  def preview_template!(server, id) do
+    case preview_template(server, id) do
+      {:ok, result} -> result
+      {:error, error} -> raise error
+    end
+  end
 
-  @doc "See `Listmonk.Templates.create/2`"
-  @spec create_template(map(), Config.t() | nil) :: {:ok, Template.t()} | {:error, Error.t()}
-  defdelegate create_template(attrs, config \\ nil), to: Templates, as: :create
+  @doc """
+  Creates a new template.
 
-  @doc "See `Listmonk.Templates.create!/2`"
-  @spec create_template!(map(), Config.t() | nil) :: Template.t()
-  defdelegate create_template!(attrs, config \\ nil), to: Templates, as: :create!
+  ## Attributes
 
-  @doc "See `Listmonk.Templates.update/3`"
-  @spec update_template(Template.t(), map(), Config.t() | nil) ::
+  - `:name` (required) - Template name
+  - `:body` (required) - Template body HTML
+  - `:type` - Template type (:campaign or :tx)
+  - `:subject` - Default subject (for tx templates)
+  - `:is_default` - Set as default template
+  """
+  @spec create_template(server(), map()) :: {:ok, Template.t()} | {:error, Error.t()}
+  def create_template(server, attrs) do
+    Listmonk.Templates.create(server, attrs)
+  end
+
+  @doc "Creates a new template. Raises on error."
+  @spec create_template!(server(), map()) :: Template.t()
+  def create_template!(server, attrs) do
+    case create_template(server, attrs) do
+      {:ok, result} -> result
+      {:error, error} -> raise error
+    end
+  end
+
+  @doc "Updates a template."
+  @spec update_template(server(), Template.t(), map()) ::
           {:ok, Template.t()} | {:error, Error.t()}
-  defdelegate update_template(template, attrs, config \\ nil), to: Templates, as: :update
+  def update_template(server, template, attrs) do
+    Listmonk.Templates.update(server, template, attrs)
+  end
 
-  @doc "See `Listmonk.Templates.update!/3`"
-  @spec update_template!(Template.t(), map(), Config.t() | nil) :: Template.t()
-  defdelegate update_template!(template, attrs, config \\ nil), to: Templates, as: :update!
+  @doc "Updates a template. Raises on error."
+  @spec update_template!(server(), Template.t(), map()) :: Template.t()
+  def update_template!(server, template, attrs) do
+    case update_template(server, template, attrs) do
+      {:ok, result} -> result
+      {:error, error} -> raise error
+    end
+  end
 
-  @doc "See `Listmonk.Templates.delete/2`"
-  @spec delete_template(integer(), Config.t() | nil) :: {:ok, boolean()} | {:error, Error.t()}
-  defdelegate delete_template(id, config \\ nil), to: Templates, as: :delete
+  @doc "Deletes a template by ID."
+  @spec delete_template(server(), integer()) :: {:ok, boolean()} | {:error, Error.t()}
+  def delete_template(server, id) do
+    Listmonk.Templates.delete(server, id)
+  end
 
-  @doc "See `Listmonk.Templates.delete!/2`"
-  @spec delete_template!(integer(), Config.t() | nil) :: boolean()
-  defdelegate delete_template!(id, config \\ nil), to: Templates, as: :delete!
+  @doc "Deletes a template. Raises on error."
+  @spec delete_template!(server(), integer()) :: boolean()
+  def delete_template!(server, id) do
+    case delete_template(server, id) do
+      {:ok, result} -> result
+      {:error, error} -> raise error
+    end
+  end
 
-  @doc "See `Listmonk.Templates.set_default/2`"
-  @spec set_default_template(integer(), Config.t() | nil) ::
-          {:ok, boolean()} | {:error, Error.t()}
-  defdelegate set_default_template(id, config \\ nil), to: Templates, as: :set_default
+  @doc "Sets a template as the default."
+  @spec set_default_template(server(), integer()) :: {:ok, boolean()} | {:error, Error.t()}
+  def set_default_template(server, id) do
+    Listmonk.Templates.set_default(server, id)
+  end
 
-  @doc "See `Listmonk.Templates.set_default!/2`"
-  @spec set_default_template!(integer(), Config.t() | nil) :: boolean()
-  defdelegate set_default_template!(id, config \\ nil), to: Templates, as: :set_default!
+  @doc "Sets a template as the default. Raises on error."
+  @spec set_default_template!(server(), integer()) :: boolean()
+  def set_default_template!(server, id) do
+    case set_default_template(server, id) do
+      {:ok, result} -> result
+      {:error, error} -> raise error
+    end
+  end
 
   # Transactional email functions
-  @doc "See `Listmonk.Transactional.send_email/2`"
-  @spec send_transactional_email(map(), Config.t() | nil) ::
-          {:ok, boolean()} | {:error, Error.t()}
-  defdelegate send_transactional_email(attrs, config \\ nil), to: Transactional, as: :send_email
 
-  @doc "See `Listmonk.Transactional.send_email!/2`"
-  @spec send_transactional_email!(map(), Config.t() | nil) :: boolean()
-  defdelegate send_transactional_email!(attrs, config \\ nil), to: Transactional, as: :send_email!
+  @doc """
+  Sends a transactional email.
+
+  ## Attributes
+
+  - `:subscriber_email` (required) - Recipient email address
+  - `:template_id` (required) - TX template ID to use
+  - `:from_email` - From email address
+  - `:data` - Template data map
+  - `:attachments` - List of file paths to attach
+  """
+  @spec send_transactional_email(server(), map()) :: {:ok, boolean()} | {:error, Error.t()}
+  def send_transactional_email(server, attrs) do
+    Listmonk.Transactional.send_email(server, attrs)
+  end
+
+  @doc "Sends a transactional email. Raises on error."
+  @spec send_transactional_email!(server(), map()) :: boolean()
+  def send_transactional_email!(server, attrs) do
+    case send_transactional_email(server, attrs) do
+      {:ok, result} -> result
+      {:error, error} -> raise error
+    end
+  end
 end
